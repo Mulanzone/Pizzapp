@@ -217,6 +217,7 @@ const BASE_OVENS_RAW = [
   /* ---------- State ---------- */
   const defaultState = () => ({
     activeTab: "session",
+    debugMode: false,
     making: {
          measured: {
         roomC: null,
@@ -258,6 +259,7 @@ const BASE_OVENS_RAW = [
   });
 
   let STATE = defaultState();
+  let LAST_CHANGED_INPUT_KEY = "—";
 
   function saveState() {
     localStorage.setItem(LS.STATE, JSON.stringify(STATE));
@@ -297,7 +299,9 @@ if (STATE.ovenProgramId != null && typeof STATE.ovenProgramId !== "string") {
   STATE.ovenProgramId = String(STATE.ovenProgramId);
 }
 
+    if (typeof STATE.debugMode !== "boolean") STATE.debugMode = false;
     if (!STATE.activeTab) STATE.activeTab = "session";
+    if (!STATE.debugMode && STATE.activeTab === "debug") STATE.activeTab = "session";
     if (!STATE.dough) STATE.dough = defaultState().dough;
     if (!Array.isArray(STATE.orders)) STATE.orders = [];
     // Backward compatibility: map old bakeEnvironment to new ovenId (if ovenId not set)
@@ -356,6 +360,15 @@ if (STATE.ovenProgramId != null && typeof STATE.ovenProgramId !== "string") {
       b.classList.toggle("active", b.dataset.tab === STATE.activeTab);
     });
 
+    const debugBtn = $("#tabs .tab-btn[data-tab=\"debug\"]");
+    if (debugBtn) {
+      debugBtn.style.display = STATE.debugMode ? "" : "none";
+    }
+    const debugToggle = $("#debugToggle");
+    if (debugToggle) {
+      debugToggle.checked = STATE.debugMode;
+    }
+
     $$(".tab-panel").forEach((p) => p.classList.remove("active"));
     const active = $(`#tab-${STATE.activeTab}`);
     if (active) active.classList.add("active");
@@ -366,6 +379,13 @@ if (STATE.ovenProgramId != null && typeof STATE.ovenProgramId !== "string") {
 
   function switchTab(tab) {
     STATE.activeTab = tab;
+    saveState();
+    render();
+  }
+
+  function setDebugMode(enabled) {
+    STATE.debugMode = Boolean(enabled);
+    if (!STATE.debugMode && STATE.activeTab === "debug") STATE.activeTab = "session";
     saveState();
     render();
   }
@@ -1367,30 +1387,13 @@ function computeTimelineInputs() {
   };
 }
 
-function renderDebug() {
-  const root = $("#tab-debug");
-  if (!root) return;
-
+function getCanonicalInputsState() {
   const d = STATE.dough || {};
-  const ov = getSelectedOven ? getSelectedOven() : ((STATE.ovens || []).find(o => o.id === STATE.ovenId) || null);
-  const prog = (typeof getSelectedOvenProgram === "function") ? getSelectedOvenProgram(ov) : null;
-
-  const doughComputed = (typeof computeDough === "function") ? computeDough() : null;
-  const timelineInputs = computeTimelineInputs();
-
-  const totals = {
-    totalPeople: Array.isArray(STATE.orders) ? STATE.orders.length : 0,
-    totalPizzas: (typeof totalPizzasFromOrders === "function") ? totalPizzasFromOrders() : null,
-    ballsUsed: (typeof ensureMinimumBallLogic === "function") ? ensureMinimumBallLogic() : null
-  };
-
-  // “Enabled/active” snapshot (trim noise)
-  const activeSnapshot = pickTruthy({
-    activeTab: STATE.activeTab,
-    ovenId: STATE.ovenId,
-    ovenProgramId: STATE.ovenProgramId,
-    mixerId: STATE.mixerId,
-    dough: pickTruthy({
+  return {
+    ovenId: STATE.ovenId || null,
+    ovenProgramId: STATE.ovenProgramId || null,
+    mixerId: STATE.mixerId || null,
+    dough: {
       methodId: d.methodId,
       plannedEat: d.plannedEat,
       bakeEnvironment: d.bakeEnvironment,
@@ -1405,45 +1408,170 @@ function renderDebug() {
       honeyPct: d.honeyPct,
       ballWeightG: d.ballWeightG,
       temps: d.temps
-    }),
-    totals,
-    timelineInputs
+    },
+    orders: deepClone(STATE.orders || []),
+    making: deepClone(STATE.making || {})
+  };
+}
+
+function getDerivedOutputsSummary() {
+  return {
+    totals: {
+      totalPeople: Array.isArray(STATE.orders) ? STATE.orders.length : 0,
+      totalPizzas: (typeof totalPizzasFromOrders === "function") ? totalPizzasFromOrders() : null,
+      ballsUsed: (typeof ensureMinimumBallLogic === "function") ? ensureMinimumBallLogic() : null
+    },
+    dough: (typeof computeDough === "function") ? computeDough() : null,
+    timeline: computeTimelineInputs(),
+    waterTempC: (typeof recommendWaterTempC === "function") ? recommendWaterTempC() : null
+  };
+}
+
+function validateState() {
+  const errors = [];
+  const d = STATE.dough || {};
+  const planned = parseDTLocal(d.plannedEat);
+
+  if (!planned) errors.push("Planned time to eat is missing or invalid.");
+  if (!STATE.ovenId) errors.push("Oven selection is missing.");
+
+  const hydration = Number(d.hydrationPct);
+  if (!isFinite(hydration) || hydration < 50 || hydration > 90) {
+    errors.push("Hydration % must be between 50 and 90.");
+  }
+
+  const salt = Number(d.saltPct);
+  if (!isFinite(salt) || salt < 1.5 || salt > 4) {
+    errors.push("Salt % must be between 1.5 and 4.");
+  }
+
+  const honey = Number(d.honeyPct);
+  if (!isFinite(honey) || honey < 0 || honey > 3) {
+    errors.push("Honey % must be between 0 and 3.");
+  }
+
+  const ballWeight = Number(d.ballWeightG);
+  if (!isFinite(ballWeight) || ballWeight < 200) {
+    errors.push("Ball weight must be at least 200g.");
+  }
+
+  const fermHours = Number(d.fermentationHours);
+  if (!isFinite(fermHours) || fermHours < 6 || fermHours > 96) {
+    errors.push("Fermentation hours must be between 6 and 96.");
+  }
+
+  const prefPct = Number(d.prefermentPct);
+  if (!isFinite(prefPct) || prefPct < 0 || prefPct > 100) {
+    errors.push("Preferment % must be between 0 and 100.");
+  }
+
+  (STATE.orders || []).forEach((person, personIndex) => {
+    (person.pizzas || []).forEach((pz, pizzaIndex) => {
+      const qty = Number(pz.qty);
+      if (!isFinite(qty) || qty < 1) {
+        errors.push(`Order ${personIndex + 1}, pizza ${pizzaIndex + 1} must have qty >= 1.`);
+      }
+    });
   });
+
+  return errors;
+}
+
+function getDebugInfo() {
+  return {
+    canonicalInputs: getCanonicalInputsState(),
+    lastChangedInputKey: LAST_CHANGED_INPUT_KEY,
+    derivedOutputs: getDerivedOutputsSummary(),
+    validationErrors: validateState()
+  };
+}
+
+function renderDebugPanel() {
+  const root = $("#debug-panel");
+  if (!root) return;
+
+  if (!STATE.debugMode) {
+    root.innerHTML = "";
+    root.classList.add("hidden");
+    return;
+  }
+
+  const info = getDebugInfo();
+  const errorsHtml = info.validationErrors.length
+    ? `<ul>${info.validationErrors.map(err => `<li>${escapeHtml(err)}</li>`).join("")}</ul>`
+    : `<div class="small">None</div>`;
+
+  root.classList.remove("hidden");
+  root.innerHTML = `
+    <div class="card">
+      <h2>Debug Mode</h2>
+      <p>Live debug data updates as you edit inputs.</p>
+    </div>
+    <div class="card">
+      <h3>Canonical Inputs (JSON)</h3>
+      <pre class="small">${escapeHtml(safeStringify(info.canonicalInputs))}</pre>
+    </div>
+    <div class="card">
+      <h3>Last-Changed Input Key</h3>
+      <div class="small">${escapeHtml(info.lastChangedInputKey || "—")}</div>
+    </div>
+    <div class="card">
+      <h3>Derived Outputs Summary</h3>
+      <pre class="small">${escapeHtml(safeStringify(info.derivedOutputs))}</pre>
+    </div>
+    <div class="card">
+      <h3>Validation Errors</h3>
+      ${errorsHtml}
+    </div>
+  `;
+}
+
+function describeInputKey(target) {
+  if (!target) return "unknown";
+  if (target.dataset?.debugKey) return target.dataset.debugKey;
+  if (target.id) return target.id;
+  if (target.name) return target.name;
+  if (target.dataset?.act) {
+    const pid = target.dataset.pid ? `:${target.dataset.pid}` : "";
+    const idx = target.dataset.idx ? `[${target.dataset.idx}]` : "";
+    return `${target.dataset.act}${pid}${idx}`;
+  }
+  return target.tagName ? target.tagName.toLowerCase() : "unknown";
+}
+
+function renderDebug() {
+  const root = $("#tab-debug");
+  if (!root) return;
+
+  const info = getDebugInfo();
+  const errorsHtml = info.validationErrors.length
+    ? `<ul>${info.validationErrors.map(err => `<li>${escapeHtml(err)}</li>`).join("")}</ul>`
+    : `<div class="small">None</div>`;
 
   root.innerHTML = `
     <div class="card">
       <h2>Debug</h2>
-      <p>Live snapshot of current state, selections, and derived variables used by the planner.</p>
+      <p>Live debug data for inputs and derived outputs.</p>
     </div>
 
     <div class="card">
-      <h3>Active / Enabled Snapshot (filtered)</h3>
-      <pre class="small">${escapeHtml(safeStringify(activeSnapshot))}</pre>
+      <h3>Canonical Inputs (JSON)</h3>
+      <pre class="small">${escapeHtml(safeStringify(info.canonicalInputs))}</pre>
     </div>
 
     <div class="card">
-      <h3>Oven (Selected)</h3>
-      <pre class="small">${escapeHtml(safeStringify(pickTruthy({
-        ovenId: STATE.ovenId,
-        ovenProgramId: STATE.ovenProgramId,
-        oven: ov ? { id: ov.id, label: ov.label, fuelType: ov.fuelType, constraints: ov.constraints, preheat: ov.preheat } : null,
-        program: prog ? { id: prog.id, display_name: prog.display_name, bake_time_seconds: prog.bake_time_seconds, rotation_strategy: prog.rotation_strategy, launch_method: prog.launch_method } : null
-      })) )}</pre>
+      <h3>Last-Changed Input Key</h3>
+      <div class="small">${escapeHtml(info.lastChangedInputKey || "—")}</div>
     </div>
 
     <div class="card">
-      <h3>Dough (Computed)</h3>
-      <pre class="small">${escapeHtml(safeStringify(doughComputed))}</pre>
+      <h3>Derived Outputs Summary</h3>
+      <pre class="small">${escapeHtml(safeStringify(info.derivedOutputs))}</pre>
     </div>
 
     <div class="card">
-      <h3>Orders (Raw)</h3>
-      <pre class="small">${escapeHtml(safeStringify(STATE.orders))}</pre>
-    </div>
-
-    <div class="card">
-      <h3>STATE (Raw)</h3>
-      <pre class="small">${escapeHtml(safeStringify(STATE))}</pre>
+      <h3>Validation Errors</h3>
+      ${errorsHtml}
     </div>
   `;
 }
@@ -2547,6 +2675,8 @@ function renderMaking() {
     normalizeState();
     if (!renderTabs()) return;
 
+    renderDebugPanel();
+
     if (STATE.activeTab === "session") renderSession();
     else if (STATE.activeTab === "orders") renderOrders();
     else if (STATE.activeTab === "making") renderMaking();
@@ -2560,9 +2690,40 @@ function renderMaking() {
     loadState();
     if (!STATE || !STATE.dough) STATE = defaultState();
 
+    const params = new URLSearchParams(window.location.search);
+    const debugParam = params.get("debug");
+    if (debugParam === "1" || debugParam === "true") {
+      STATE.debugMode = true;
+    }
+    if (debugParam === "0") {
+      STATE.debugMode = false;
+    }
+
     // Attach tab events
     $$("#tabs .tab-btn").forEach((b) => {
       b.onclick = () => switchTab(b.dataset.tab);
+    });
+
+    const debugToggle = $("#debugToggle");
+    if (debugToggle) {
+      debugToggle.onchange = (e) => {
+        setDebugMode(e.target.checked);
+      };
+    }
+
+    document.addEventListener("input", (e) => {
+      LAST_CHANGED_INPUT_KEY = describeInputKey(e.target);
+      if (STATE.debugMode) {
+        renderDebugPanel();
+        if (STATE.activeTab === "debug") renderDebug();
+      }
+    });
+    document.addEventListener("change", (e) => {
+      LAST_CHANGED_INPUT_KEY = describeInputKey(e.target);
+      if (STATE.debugMode) {
+        renderDebugPanel();
+        if (STATE.activeTab === "debug") renderDebug();
+      }
     });
 
         // Load configs from JSON BEFORE first render
