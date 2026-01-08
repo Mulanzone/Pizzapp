@@ -149,6 +149,22 @@ input,select{
 input:focus,select:focus{
   border-color:rgba(249,115,22,.55);
 }
+.input-invalid{
+  border-color:rgba(239,68,68,.75);
+  box-shadow:0 0 0 1px rgba(239,68,68,.35);
+}
+.input-error{
+  margin-top:4px;
+  font-size:.8rem;
+  color:var(--danger);
+}
+.dirty-indicator{
+  margin-left:6px;
+  font-size:.65rem;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--brand);
+}
 
 .kpi{
   display:grid;
