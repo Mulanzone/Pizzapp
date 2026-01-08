@@ -845,11 +845,9 @@ function firstFinite(...vals) {
     const ov = getSelectedOven();
     const prog = getSelectedOvenProgram(ov);
 
-    setBanner("ok", "Session loaded", "Session, Orders, Making, Shopping, Presets are active. If anything blanks, check the DevTools Console for the thrown error.");
-
     root.innerHTML = `
       <div class="card">
-        <h2>Session Dashboard</h2>
+        <h2>Pizza Night Dashboard</h2>
         <p>One dough for everyone. Orders only change how many balls you need (minimum ${MIN_BALLS}).</p>
 
         <div class="kpi">
@@ -1572,11 +1570,6 @@ const presetsAllowed = presetsAll.filter(isPresetAllowedByDough);
     const toppingTotals = computeToppingTotals();
 
     root.innerHTML = `
-      <div class="card">
-        <h2>Shopping List</h2>
-        <p>Split into Dough vs Toppings. Dough uses max(min ${MIN_BALLS}, ordered).</p>
-      </div>
-
       <div class="card">
         <h3>Dough (for ${ballsUsed} ball(s) × ${STATE.dough.ballWeightG}g)</h3>
         <ul>
@@ -2787,6 +2780,50 @@ function renderMaking() {
 
     ${ingredientWarnings}
     ${hasPref ? prefermentStepA + prefermentStepB + totalsReference : weighOutTotals}
+      <h3>Weigh Out Now (Large Numbers)</h3>
+
+      <div class="kpi" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
+        <div class="box">
+          <div class="small">FLOUR</div>
+          <div class="v" style="font-size:34px;">${dough.flourG} g</div>
+        </div>
+        <div class="box">
+          <div class="small">WATER</div>
+          <div class="v" style="font-size:34px;">${dough.waterG} g</div>
+        </div>
+        <div class="box">
+          <div class="small">SALT</div>
+          <div class="v" style="font-size:34px;">${dough.saltG} g</div>
+        </div>
+        <div class="box">
+          <div class="small">HONEY</div>
+          <div class="v" style="font-size:34px;">${dough.honeyG} g</div>
+        </div>
+      </div>
+
+      ${hasPref ? `
+        <div class="card" style="margin-top:12px;">
+          <h3 style="margin:0 0 10px;">Preferment Split (Flour)</h3>
+          <div class="kpi" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+            <div class="box">
+              <div class="small">${escapeHtml(prefType.toUpperCase())} FLOUR</div>
+              <div class="v" style="font-size:28px;">${dough.prefermentFlourG} g</div>
+            </div>
+            <div class="box">
+              <div class="small">FINAL MIX FLOUR</div>
+              <div class="v" style="font-size:28px;">${dough.finalFlourG} g</div>
+            </div>
+            <div class="box">
+              <div class="small">PREFERMENT %</div>
+              <div class="v" style="font-size:28px;">${Number(d.prefermentPct || 0)}%</div>
+            </div>
+          </div>
+          <div class="small" style="margin-top:10px;">
+            Preferment type: <strong>${escapeHtml(prefType)}</strong>
+          </div>
+        </div>
+      ` : ``}
+    </div>
 
     <div class="card">
       <h3>Measure Now (Live Temps)</h3>
@@ -2993,11 +3030,6 @@ function renderMaking() {
     const custom = loadCustomPizzaPresets();
 
     root.innerHTML = `
-      <div class="card">
-        <h2>Pizza Presets</h2>
-        <p>Base presets are immutable. Create custom presets for your own styles and topping sets.</p>
-      </div>
-
       <div class="card">
         <h3>Create new preset</h3>
         <div class="grid-2">
