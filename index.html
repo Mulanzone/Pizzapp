@@ -1,0 +1,38 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pizza Production Planner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav class="tabs" id="tabs">
+    <button class="tab-btn" data-tab="session">Session</button>
+    <button class="tab-btn" data-tab="orders">Orders</button>
+    <button class="tab-btn" data-tab="making">Pizza Making</button>
+    <button class="tab-btn" data-tab="shopping">Shopping</button>
+    <button class="tab-btn" data-tab="presets">Pizza Presets</button>
+    <button class="tab-btn" data-tab="debug">Debug</button>
+  </nav>
+
+  <main class="content">
+  <div id="appBanner"></div>
+    <div class="small" style="margin-top:6px;">
+  Dough constraint active: allowed pizza formats are <strong>${escapeHtml(allowedFormats.join(", "))}</strong>.
+</div>
+
+  <section id="tab-session" class="tab-panel active"></section>
+  <section id="tab-orders" class="tab-panel"></section>
+  <section id="tab-making" class="tab-panel"></section>
+  <section id="tab-shopping" class="tab-panel"></section>
+  <section id="tab-presets" class="tab-panel"></section>
+  <section id="tab-debug" class="tab-panel"></section>
+</main>
+
+
+  <script src="config/loaders/configLoader.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>
