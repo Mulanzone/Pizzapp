@@ -14,6 +14,136 @@
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
   const round = (n, d = 1) => Math.round(n * 10 ** d) / 10 ** d;
+  const INPUT_STORE = {
+    drafts: {},
+    errors: {}
+  };
+
+  const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
+  function getInputDraft(key) {
+    return hasOwn(INPUT_STORE.drafts, key) ? INPUT_STORE.drafts[key] : null;
+  }
+
+  function setInputDraft(key, value) {
+    INPUT_STORE.drafts[key] = value;
+  }
+
+  function clearInputDraft(key) {
+    delete INPUT_STORE.drafts[key];
+  }
+
+  function setInputError(key, message) {
+    if (message) INPUT_STORE.errors[key] = message;
+    else delete INPUT_STORE.errors[key];
+  }
+
+  function getInputError(key) {
+    return hasOwn(INPUT_STORE.errors, key) ? INPUT_STORE.errors[key] : null;
+  }
+
+  function getInputDisplayValue(key, fallback) {
+    const draft = getInputDraft(key);
+    if (draft !== null) return draft;
+    if (fallback == null) return "";
+    return String(fallback);
+  }
+
+  function updateInputStatus(key, el) {
+    const dirtyEl = document.querySelector(`[data-dirty-for="${key}"]`);
+    const errorEl = document.querySelector(`[data-error-for="${key}"]`);
+    const error = getInputError(key);
+    const isDirty = getInputDraft(key) !== null;
+
+    if (dirtyEl) {
+      dirtyEl.textContent = isDirty ? "pending" : "";
+      dirtyEl.hidden = !isDirty;
+    }
+
+    if (errorEl) {
+      errorEl.textContent = error || "";
+      errorEl.hidden = !error;
+    }
+
+    if (el) {
+      el.classList.toggle("input-invalid", Boolean(error));
+    }
+  }
+
+  function parseNumberInput(raw) {
+    const cleaned = String(raw ?? "").trim();
+    if (cleaned === "") return { status: "empty" };
+    const normalized = cleaned.replace(",", ".");
+    const value = Number(normalized);
+    if (!Number.isFinite(value)) return { status: "invalid" };
+    return { status: "ok", value };
+  }
+
+  function commitNumericInput(el, config) {
+    const { key, min, max, allowEmpty, integer, setValue, onCommit } = config;
+    const raw = el.value;
+    setInputDraft(key, raw);
+
+    const parsed = parseNumberInput(raw);
+    if (parsed.status === "empty") {
+      if (allowEmpty) {
+        setValue(null);
+        clearInputDraft(key);
+        setInputError(key, null);
+        el.value = "";
+        updateInputStatus(key, el);
+        if (onCommit) onCommit(null);
+        saveState();
+      } else {
+        setInputError(key, "Enter a number.");
+        updateInputStatus(key, el);
+      }
+      return;
+    }
+
+    if (parsed.status === "invalid") {
+      setInputError(key, "Enter a valid number.");
+      updateInputStatus(key, el);
+      return;
+    }
+
+    let value = parsed.value;
+    if (integer) value = Math.round(value);
+    if (typeof min === "number") value = Math.max(min, value);
+    if (typeof max === "number") value = Math.min(max, value);
+
+    setValue(value);
+    clearInputDraft(key);
+    setInputError(key, null);
+    el.value = String(value);
+    updateInputStatus(key, el);
+    if (onCommit) onCommit(value);
+    saveState();
+  }
+
+  function bindNumericInput(el, config) {
+    if (!el) return;
+    const { key, getValue } = config;
+    el.value = getInputDisplayValue(key, getValue());
+    updateInputStatus(key, el);
+
+    el.addEventListener("input", (e) => {
+      setInputDraft(key, e.target.value);
+      setInputError(key, null);
+      updateInputStatus(key, el);
+    });
+
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        el.blur();
+      }
+    });
+
+    el.addEventListener("blur", () => {
+      commitNumericInput(el, config);
+    });
+  }
 
   const escapeHtml = (str) =>
     String(str ?? "")
@@ -647,10 +777,59 @@ function firstFinite(...vals) {
   return (STATE.ovens || []).find(o => o.id === STATE.ovenId) || null;
 }
 
-function getSelectedOvenProgram(ov) {
+  function getSelectedOvenProgram(ov) {
   if (!ov || !Array.isArray(ov.programs) || !ov.programs.length) return null;
   return ov.programs.find(p => p.id === STATE.ovenProgramId) || ov.programs[0];
 }
+
+  function updateSessionOutputs() {
+    const d = STATE.dough;
+    const c = computeDough();
+    const ballsUsed = ensureMinimumBallLogic();
+    const waterRec = recommendWaterTempC();
+
+    const setText = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    };
+
+    setText("kpi-total-pizzas", totalPizzasFromOrders());
+    setText("kpi-balls-used", ballsUsed);
+    setText("kpi-ball-weight", `${d.ballWeightG} g`);
+    setText("kpi-total-dough", `${c.totalDoughG} g`);
+    setText("totals-flour", `${c.flourG} g`);
+    setText("totals-water", `${c.waterG} g`);
+    setText("totals-salt", `${c.saltG} g`);
+    setText("totals-honey", `${c.honeyG} g`);
+    setText("pref-flour", `${c.prefermentFlourG} g`);
+    setText("pref-final-flour", `${c.finalFlourG} g`);
+    setText("pref-pct", `${Number(d.prefermentPct || 0)}%`);
+    setText("pref-type", d.prefermentType);
+
+    const doughModeEl = document.getElementById("dough-mode-copy");
+    if (doughModeEl) doughModeEl.textContent = doughModeCopy();
+
+    const waterEl = document.getElementById("waterRec");
+    if (waterEl) waterEl.value = `${waterRec} °C`;
+
+    const prefTypeSelect = document.getElementById("prefType");
+    if (prefTypeSelect) prefTypeSelect.value = d.prefermentType;
+  }
+
+  function updateMakingOutputs() {
+    const liveWaterRec = recommendWaterTempC();
+    const waterEl = document.getElementById("making-water-rec");
+    if (waterEl) waterEl.textContent = liveWaterRec;
+  }
+
+  function updateOrderCounts(personId) {
+    if (!personId) return;
+    const person = STATE.orders.find((p) => p.id === personId);
+    if (!person) return;
+    const count = person.pizzas.reduce((a, p) => a + Number(p.qty || 0), 0);
+    const countEl = document.querySelector(`[data-person-count="${personId}"]`);
+    if (countEl) countEl.textContent = `${count} pizza(s)`;
+  }
 
   /* ============================================================
      RENDERS
@@ -674,10 +853,10 @@ function getSelectedOvenProgram(ov) {
         <p>One dough for everyone. Orders only change how many balls you need (minimum ${MIN_BALLS}).</p>
 
         <div class="kpi">
-          <div class="box"><div class="small">Pizzas ordered</div><div class="v">${totalPizzasFromOrders()}</div></div>
-          <div class="box"><div class="small">Balls used</div><div class="v">${ballsUsed}</div></div>
-          <div class="box"><div class="small">Ball weight</div><div class="v">${d.ballWeightG} g</div></div>
-          <div class="box"><div class="small">Total dough</div><div class="v">${c.totalDoughG} g</div></div>
+          <div class="box"><div class="small">Pizzas ordered</div><div class="v" id="kpi-total-pizzas">${totalPizzasFromOrders()}</div></div>
+          <div class="box"><div class="small">Balls used</div><div class="v" id="kpi-balls-used">${ballsUsed}</div></div>
+          <div class="box"><div class="small">Ball weight</div><div class="v" id="kpi-ball-weight">${d.ballWeightG} g</div></div>
+          <div class="box"><div class="small">Total dough</div><div class="v" id="kpi-total-dough">${c.totalDoughG} g</div></div>
         </div>
       </div>
 
@@ -763,8 +942,10 @@ function getSelectedOvenProgram(ov) {
             </select>
           </div>
           <div>
-            <label>Preferment % (flour pre-fermented)</label>
-            <input type="number" id="prefPct" min="0" max="100" step="5" value="${Number(d.prefermentPct || 0)}">
+            <label>Preferment % (flour pre-fermented) <span class="dirty-indicator" data-dirty-for="prefPct" hidden></span></label>
+            <input type="text" id="prefPct" inputmode="numeric" data-numeric="true"
+              value="${escapeHtml(getInputDisplayValue("prefPct", Number(d.prefermentPct || 0)))}">
+            <div class="input-error" data-error-for="prefPct" hidden></div>
             <div class="small">0% = direct. 30–60% common. 100% allowed (advanced).</div>
           </div>
 
@@ -777,12 +958,14 @@ function getSelectedOvenProgram(ov) {
             </select>
           </div>
           <div>
-            <label>Total fermentation time (hours)</label>
-            <input type="number" id="fermHours" min="6" step="1" value="${Number(d.fermentationHours || 24)}">
+            <label>Total fermentation time (hours) <span class="dirty-indicator" data-dirty-for="fermHours" hidden></span></label>
+            <input type="text" id="fermHours" inputmode="numeric" data-numeric="true"
+              value="${escapeHtml(getInputDisplayValue("fermHours", Number(d.fermentationHours || 24)))}">
+            <div class="input-error" data-error-for="fermHours" hidden></div>
             <div class="small">Typical: 24h Neapolitan; 48h pan/teglia.</div>
           </div>
         </div>
-        <p>${escapeHtml(doughModeCopy())}</p>
+        <p id="dough-mode-copy">${escapeHtml(doughModeCopy())}</p>
       </div>
 
       <div class="card">
@@ -807,23 +990,31 @@ function getSelectedOvenProgram(ov) {
           </div>
 
           <div>
-            <label>Ball weight (g)</label>
-            <input type="number" id="ballWeight" min="200" step="5" value="${Number(d.ballWeightG || 260)}">
+            <label>Ball weight (g) <span class="dirty-indicator" data-dirty-for="ballWeight" hidden></span></label>
+            <input type="text" id="ballWeight" inputmode="numeric" data-numeric="true"
+              value="${escapeHtml(getInputDisplayValue("ballWeight", Number(d.ballWeightG || 260)))}">
+            <div class="input-error" data-error-for="ballWeight" hidden></div>
           </div>
 
           <div>
-            <label>Hydration %</label>
-            <input type="number" id="hydration" step="0.5" value="${Number(d.hydrationPct || 63)}">
+            <label>Hydration % <span class="dirty-indicator" data-dirty-for="hydration" hidden></span></label>
+            <input type="text" id="hydration" inputmode="decimal" data-numeric="true"
+              value="${escapeHtml(getInputDisplayValue("hydration", Number(d.hydrationPct || 63)))}">
+            <div class="input-error" data-error-for="hydration" hidden></div>
           </div>
 
           <div>
-            <label>Salt %</label>
-            <input type="number" id="salt" step="0.1" value="${Number(d.saltPct || 2.8)}">
+            <label>Salt % <span class="dirty-indicator" data-dirty-for="salt" hidden></span></label>
+            <input type="text" id="salt" inputmode="decimal" data-numeric="true"
+              value="${escapeHtml(getInputDisplayValue("salt", Number(d.saltPct || 2.8)))}">
+            <div class="input-error" data-error-for="salt" hidden></div>
           </div>
 
           <div>
-            <label>Honey % (optional)</label>
-            <input type="number" id="honey" step="0.1" value="${Number(d.honeyPct || 0)}">
+            <label>Honey % (optional) <span class="dirty-indicator" data-dirty-for="honey" hidden></span></label>
+            <input type="text" id="honey" inputmode="decimal" data-numeric="true"
+              value="${escapeHtml(getInputDisplayValue("honey", Number(d.honeyPct || 0)))}">
+            <div class="input-error" data-error-for="honey" hidden></div>
           </div>
         </div>
       </div>
@@ -832,20 +1023,26 @@ function getSelectedOvenProgram(ov) {
         <h3>Temperature Planning (DDT)</h3>
         <div class="grid-2">
           <div>
-            <label>Room temp (°C)</label>
-            <input type="number" id="roomC" step="0.5" value="${Number(d.temps.roomC || 22)}">
+            <label>Room temp (°C) <span class="dirty-indicator" data-dirty-for="roomC" hidden></span></label>
+            <input type="text" id="roomC" inputmode="decimal" data-numeric="true"
+              value="${escapeHtml(getInputDisplayValue("roomC", Number(d.temps.roomC || 22)))}">
+            <div class="input-error" data-error-for="roomC" hidden></div>
           </div>
           <div>
-            <label>Flour temp (°C)</label>
-            <input type="number" id="flourC" step="0.5" value="${Number(d.temps.flourC || 22)}">
+            <label>Flour temp (°C) <span class="dirty-indicator" data-dirty-for="flourC" hidden></span></label>
+            <input type="text" id="flourC" inputmode="decimal" data-numeric="true"
+              value="${escapeHtml(getInputDisplayValue("flourC", Number(d.temps.flourC || 22)))}">
+            <div class="input-error" data-error-for="flourC" hidden></div>
           </div>
           <div>
-            <label>Target DDT (°C)</label>
-            <input type="number" id="ddtC" step="0.5" value="${Number(d.temps.targetDDTC || 23)}">
+            <label>Target DDT (°C) <span class="dirty-indicator" data-dirty-for="ddtC" hidden></span></label>
+            <input type="text" id="ddtC" inputmode="decimal" data-numeric="true"
+              value="${escapeHtml(getInputDisplayValue("ddtC", Number(d.temps.targetDDTC || 23)))}">
+            <div class="input-error" data-error-for="ddtC" hidden></div>
           </div>
           <div>
             <label>Recommended water temp (°C)</label>
-            <input type="text" value="${waterRec} °C" disabled>
+            <input type="text" id="waterRec" value="${waterRec} °C" disabled>
           </div>
         </div>
         <p>Goal: predictable fermentation. This is the temperature lever that improves consistency.</p>
@@ -854,19 +1051,19 @@ function getSelectedOvenProgram(ov) {
       <div class="card">
         <h3>Ingredient Totals (dough)</h3>
         <div class="kpi">
-          <div class="box"><div class="small">Flour</div><div class="v">${c.flourG} g</div></div>
-          <div class="box"><div class="small">Water</div><div class="v">${c.waterG} g</div></div>
-          <div class="box"><div class="small">Salt</div><div class="v">${c.saltG} g</div></div>
-          <div class="box"><div class="small">Honey</div><div class="v">${c.honeyG} g</div></div>
+          <div class="box"><div class="small">Flour</div><div class="v" id="totals-flour">${c.flourG} g</div></div>
+          <div class="box"><div class="small">Water</div><div class="v" id="totals-water">${c.waterG} g</div></div>
+          <div class="box"><div class="small">Salt</div><div class="v" id="totals-salt">${c.saltG} g</div></div>
+          <div class="box"><div class="small">Honey</div><div class="v" id="totals-honey">${c.honeyG} g</div></div>
         </div>
 
         <div class="card" style="margin-top:12px;">
           <h3>Preferment Split (flour)</h3>
           <div class="kpi">
-            <div class="box"><div class="small">Preferment flour</div><div class="v">${c.prefermentFlourG} g</div></div>
-            <div class="box"><div class="small">Final flour</div><div class="v">${c.finalFlourG} g</div></div>
-            <div class="box"><div class="small">Preferment %</div><div class="v">${Number(d.prefermentPct || 0)}%</div></div>
-            <div class="box"><div class="small">Preferment type</div><div class="v">${escapeHtml(d.prefermentType)}</div></div>
+            <div class="box"><div class="small">Preferment flour</div><div class="v" id="pref-flour">${c.prefermentFlourG} g</div></div>
+            <div class="box"><div class="small">Final flour</div><div class="v" id="pref-final-flour">${c.finalFlourG} g</div></div>
+            <div class="box"><div class="small">Preferment %</div><div class="v" id="pref-pct">${Number(d.prefermentPct || 0)}%</div></div>
+            <div class="box"><div class="small">Preferment type</div><div class="v" id="pref-type">${escapeHtml(d.prefermentType)}</div></div>
           </div>
         </div>
       </div>
@@ -926,27 +1123,83 @@ function getSelectedOvenProgram(ov) {
       saveState();
       render();
     };
-    $("#prefPct").oninput = (e) => {
-      d.prefermentPct = clamp(Number(e.target.value), 0, 100);
-      if (d.prefermentType === "direct" && d.prefermentPct > 0) d.prefermentType = "poolish";
-      saveState();
-      render();
-    };
+    bindNumericInput($("#prefPct"), {
+      key: "prefPct",
+      getValue: () => Number(d.prefermentPct || 0),
+      setValue: (value) => {
+        d.prefermentPct = clamp(value, 0, 100);
+        if (d.prefermentType === "direct" && d.prefermentPct > 0) d.prefermentType = "poolish";
+      },
+      min: 0,
+      max: 100,
+      integer: true,
+      onCommit: updateSessionOutputs
+    });
 
     $("#fermLoc").onchange = (e) => { d.fermentationLocation = e.target.value; saveState(); render(); };
-    $("#fermHours").oninput = (e) => { d.fermentationHours = clamp(Number(e.target.value), 6, 96); saveState(); render(); };
+    bindNumericInput($("#fermHours"), {
+      key: "fermHours",
+      getValue: () => Number(d.fermentationHours || 24),
+      setValue: (value) => { d.fermentationHours = clamp(value, 6, 96); },
+      min: 6,
+      max: 96,
+      integer: true
+    });
 
     $("#mixMethod").onchange = (e) => { d.mixingMethod = e.target.value; saveState(); render(); };
     $("#yeastType").onchange = (e) => { d.yeastType = e.target.value; saveState(); render(); };
 
-    $("#ballWeight").oninput = (e) => { d.ballWeightG = Math.max(200, Number(e.target.value)); saveState(); render(); };
-    $("#hydration").oninput = (e) => { d.hydrationPct = clamp(Number(e.target.value), 50, 90); saveState(); render(); };
-    $("#salt").oninput = (e) => { d.saltPct = clamp(Number(e.target.value), 1.5, 4); saveState(); render(); };
-    $("#honey").oninput = (e) => { d.honeyPct = clamp(Number(e.target.value), 0, 3); saveState(); render(); };
+    bindNumericInput($("#ballWeight"), {
+      key: "ballWeight",
+      getValue: () => Number(d.ballWeightG || 260),
+      setValue: (value) => { d.ballWeightG = Math.max(200, value); },
+      min: 200,
+      integer: true,
+      onCommit: updateSessionOutputs
+    });
+    bindNumericInput($("#hydration"), {
+      key: "hydration",
+      getValue: () => Number(d.hydrationPct || 63),
+      setValue: (value) => { d.hydrationPct = clamp(value, 50, 90); },
+      min: 50,
+      max: 90,
+      onCommit: updateSessionOutputs
+    });
+    bindNumericInput($("#salt"), {
+      key: "salt",
+      getValue: () => Number(d.saltPct || 2.8),
+      setValue: (value) => { d.saltPct = clamp(value, 1.5, 4); },
+      min: 1.5,
+      max: 4,
+      onCommit: updateSessionOutputs
+    });
+    bindNumericInput($("#honey"), {
+      key: "honey",
+      getValue: () => Number(d.honeyPct || 0),
+      setValue: (value) => { d.honeyPct = clamp(value, 0, 3); },
+      min: 0,
+      max: 3,
+      onCommit: updateSessionOutputs
+    });
 
-    $("#roomC").oninput = (e) => { d.temps.roomC = Number(e.target.value); saveState(); render(); };
-    $("#flourC").oninput = (e) => { d.temps.flourC = Number(e.target.value); saveState(); render(); };
-    $("#ddtC").oninput = (e) => { d.temps.targetDDTC = Number(e.target.value); saveState(); render(); };
+    bindNumericInput($("#roomC"), {
+      key: "roomC",
+      getValue: () => Number(d.temps.roomC || 22),
+      setValue: (value) => { d.temps.roomC = value; },
+      onCommit: updateSessionOutputs
+    });
+    bindNumericInput($("#flourC"), {
+      key: "flourC",
+      getValue: () => Number(d.temps.flourC || 22),
+      setValue: (value) => { d.temps.flourC = value; },
+      onCommit: updateSessionOutputs
+    });
+    bindNumericInput($("#ddtC"), {
+      key: "ddtC",
+      getValue: () => Number(d.temps.targetDDTC || 23),
+      setValue: (value) => { d.temps.targetDDTC = value; },
+      onCommit: updateSessionOutputs
+    });
   }
   function renderPizzaToppingsMini(pz, preset) {
     const tops =
@@ -1119,7 +1372,7 @@ const presetsAllowed = presetsAll.filter(isPresetAllowedByDough);
         <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
           <div>
             <h3 style="margin:0;">${escapeHtml(person.name)}</h3>
-            <div class="small">${person.pizzas.reduce((a,p)=>a+Number(p.qty||0),0)} pizza(s)</div>
+            <div class="small" data-person-count="${person.id}">${person.pizzas.reduce((a,p)=>a+Number(p.qty||0),0)} pizza(s)</div>
           </div>
           <div style="display:flex; gap:8px;">
             <button class="tab-btn" data-act="addPizza" data-person="${person.id}">Add pizza</button>
@@ -1152,9 +1405,11 @@ const presetsAllowed = presetsAll.filter(isPresetAllowedByDough);
                 </div>
 
                 <div>
-                  <label>Quantity</label>
-                  <input type="number" min="1" step="1" value="${Number(pz.qty||1)}"
+                  <label>Quantity <span class="dirty-indicator" data-dirty-for="qty-${person.id}-${pz.id}" hidden></span></label>
+                  <input type="text" inputmode="numeric" data-numeric="true"
+                    value="${escapeHtml(getInputDisplayValue(`qty-${person.id}-${pz.id}`, Number(pz.qty || 1)))}"
                     data-act="setQty" data-person="${person.id}" data-pizza="${pz.id}">
+                  <div class="input-error" data-error-for="qty-${person.id}-${pz.id}" hidden></div>
                   <div class="small">This contributes to dough balls (min ${MIN_BALLS} total).</div>
                 </div>
               </div>
@@ -1235,7 +1490,7 @@ const presetsAllowed = presetsAll.filter(isPresetAllowedByDough);
     }
   };
 
-  // Delegated change handler (preset + qty)
+  // Delegated change handler (preset)
   root.onchange = (e) => {
     const act = e.target?.dataset?.act;
     if (!act) return;
@@ -1258,14 +1513,29 @@ const presetsAllowed = presetsAll.filter(isPresetAllowedByDough);
       return;
     }
 
-    if (act === "setQty") {
-      pizza.qty = clamp(Number(e.target.value), 1, 30);
-      saveState();
-      normalizeState();
-      render();
-      return;
-    }
   };
+
+  $$('input[data-act="setQty"]', root).forEach((input) => {
+    const personId = input.dataset.person;
+    const pizzaId = input.dataset.pizza;
+    bindNumericInput(input, {
+      key: `qty-${personId}-${pizzaId}`,
+      getValue: () => {
+        const person = STATE.orders.find((p) => p.id === personId);
+        const pizza = person?.pizzas.find((p) => p.id === pizzaId);
+        return Number(pizza?.qty || 1);
+      },
+      setValue: (value) => {
+        const person = STATE.orders.find((p) => p.id === personId);
+        const pizza = person?.pizzas.find((p) => p.id === pizzaId);
+        if (pizza) pizza.qty = clamp(value, 1, 30);
+      },
+      min: 1,
+      max: 30,
+      integer: true,
+      onCommit: () => updateOrderCounts(personId)
+    });
+  });
 }
 
 
@@ -2441,38 +2711,50 @@ function renderMaking() {
 
       <div class="grid-2">
         <div>
-          <label>Measured room temp (°C)</label>
-          <input type="number" step="0.1" id="mk_roomC" value="${isFiniteNumber(measured.roomC) ? measured.roomC : ""}" placeholder="e.g., 24.0" />
+          <label>Measured room temp (°C) <span class="dirty-indicator" data-dirty-for="mk_roomC" hidden></span></label>
+          <input type="text" inputmode="decimal" data-numeric="true" id="mk_roomC"
+            value="${escapeHtml(getInputDisplayValue("mk_roomC", isFiniteNumber(measured.roomC) ? measured.roomC : ""))}" placeholder="e.g., 24.0" />
+          <div class="input-error" data-error-for="mk_roomC" hidden></div>
         </div>
         <div>
-          <label>Measured flour temp (°C)</label>
-          <input type="number" step="0.1" id="mk_flourC" value="${isFiniteNumber(measured.flourC) ? measured.flourC : ""}" placeholder="e.g., 22.0" />
-        </div>
-
-        <div>
-          <label>Measured water temp (°C)</label>
-          <input type="number" step="0.1" id="mk_waterC" value="${isFiniteNumber(measured.waterC) ? measured.waterC : ""}" placeholder="optional" />
-        </div>
-        <div>
-          <label>Measured dough temp (°C)</label>
-          <input type="number" step="0.1" id="mk_doughC" value="${isFiniteNumber(measured.doughC) ? measured.doughC : ""}" placeholder="after mix" />
+          <label>Measured flour temp (°C) <span class="dirty-indicator" data-dirty-for="mk_flourC" hidden></span></label>
+          <input type="text" inputmode="decimal" data-numeric="true" id="mk_flourC"
+            value="${escapeHtml(getInputDisplayValue("mk_flourC", isFiniteNumber(measured.flourC) ? measured.flourC : ""))}" placeholder="e.g., 22.0" />
+          <div class="input-error" data-error-for="mk_flourC" hidden></div>
         </div>
 
         <div>
-          <label>Measured counter temp (°C)</label>
-          <input type="number" step="0.1" id="mk_counterC" value="${isFiniteNumber(measured.counterC) ? measured.counterC : ""}" placeholder="optional" />
+          <label>Measured water temp (°C) <span class="dirty-indicator" data-dirty-for="mk_waterC" hidden></span></label>
+          <input type="text" inputmode="decimal" data-numeric="true" id="mk_waterC"
+            value="${escapeHtml(getInputDisplayValue("mk_waterC", isFiniteNumber(measured.waterC) ? measured.waterC : ""))}" placeholder="optional" />
+          <div class="input-error" data-error-for="mk_waterC" hidden></div>
+        </div>
+        <div>
+          <label>Measured dough temp (°C) <span class="dirty-indicator" data-dirty-for="mk_doughC" hidden></span></label>
+          <input type="text" inputmode="decimal" data-numeric="true" id="mk_doughC"
+            value="${escapeHtml(getInputDisplayValue("mk_doughC", isFiniteNumber(measured.doughC) ? measured.doughC : ""))}" placeholder="after mix" />
+          <div class="input-error" data-error-for="mk_doughC" hidden></div>
         </div>
 
         <div>
-          <label>Target DDT (°C)</label>
-          <input type="number" step="0.1" id="mk_targetDDT" value="${Number(d.temps?.targetDDTC ?? 23)}" />
+          <label>Measured counter temp (°C) <span class="dirty-indicator" data-dirty-for="mk_counterC" hidden></span></label>
+          <input type="text" inputmode="decimal" data-numeric="true" id="mk_counterC"
+            value="${escapeHtml(getInputDisplayValue("mk_counterC", isFiniteNumber(measured.counterC) ? measured.counterC : ""))}" placeholder="optional" />
+          <div class="input-error" data-error-for="mk_counterC" hidden></div>
+        </div>
+
+        <div>
+          <label>Target DDT (°C) <span class="dirty-indicator" data-dirty-for="mk_targetDDT" hidden></span></label>
+          <input type="text" inputmode="decimal" data-numeric="true" id="mk_targetDDT"
+            value="${escapeHtml(getInputDisplayValue("mk_targetDDT", Number(d.temps?.targetDDTC ?? 23)))}" />
+          <div class="input-error" data-error-for="mk_targetDDT" hidden></div>
         </div>
       </div>
 
       <div class="card" style="margin-top:12px;">
         <div class="small">Recommended water temperature (DDT-based)</div>
         <div class="v" style="font-size:44px; line-height:1; margin-top:6px;">
-          ${liveWaterRec} °C
+          <span id="making-water-rec">${liveWaterRec}</span> °C
         </div>
         <div class="small" style="margin-top:8px;">
           Uses measured room/flour if entered; otherwise uses Session temps. Mixer friction from selected mixer.
@@ -2501,36 +2783,52 @@ function renderMaking() {
     `).join("")}
   `;
 
-  // Wiring: update measured values and re-render live
-  const bindNum = (id, key) => {
-    const el = $(id);
-    if (!el) return;
-    el.oninput = (e) => {
-      const v = e.target.value;
-      if (v === "" || v == null) STATE.making.measured[key] = null;
-      else STATE.making.measured[key] = Number(v);
-      saveState();
-      render(); // live update
-    };
-  };
+  // Wiring: update measured values on commit
+  bindNumericInput($("#mk_roomC"), {
+    key: "mk_roomC",
+    getValue: () => measured.roomC,
+    setValue: (value) => { STATE.making.measured.roomC = value; },
+    allowEmpty: true,
+    onCommit: updateMakingOutputs
+  });
+  bindNumericInput($("#mk_flourC"), {
+    key: "mk_flourC",
+    getValue: () => measured.flourC,
+    setValue: (value) => { STATE.making.measured.flourC = value; },
+    allowEmpty: true,
+    onCommit: updateMakingOutputs
+  });
+  bindNumericInput($("#mk_waterC"), {
+    key: "mk_waterC",
+    getValue: () => measured.waterC,
+    setValue: (value) => { STATE.making.measured.waterC = value; },
+    allowEmpty: true,
+    onCommit: updateMakingOutputs
+  });
+  bindNumericInput($("#mk_doughC"), {
+    key: "mk_doughC",
+    getValue: () => measured.doughC,
+    setValue: (value) => { STATE.making.measured.doughC = value; },
+    allowEmpty: true,
+    onCommit: updateMakingOutputs
+  });
+  bindNumericInput($("#mk_counterC"), {
+    key: "mk_counterC",
+    getValue: () => measured.counterC,
+    setValue: (value) => { STATE.making.measured.counterC = value; },
+    allowEmpty: true,
+    onCommit: updateMakingOutputs
+  });
 
-  bindNum("#mk_roomC", "roomC");
-  bindNum("#mk_flourC", "flourC");
-  bindNum("#mk_waterC", "waterC");
-  bindNum("#mk_doughC", "doughC");
-  bindNum("#mk_counterC", "counterC");
-
-  const ddtEl = $("#mk_targetDDT");
-  if (ddtEl) {
-    ddtEl.oninput = (e) => {
-      const v = Number(e.target.value);
-      if (Number.isFinite(v)) {
-        STATE.dough.temps.targetDDTC = v; // target belongs to dough plan
-        saveState();
-        render();
-      }
-    };
-  }
+  bindNumericInput($("#mk_targetDDT"), {
+    key: "mk_targetDDT",
+    getValue: () => Number(STATE.dough.temps?.targetDDTC ?? 23),
+    setValue: (value) => { STATE.dough.temps.targetDDTC = value; },
+    onCommit: () => {
+      updateSessionOutputs();
+      updateMakingOutputs();
+    }
+  });
 }
 
 
@@ -2577,8 +2875,10 @@ function renderMaking() {
                   <input data-act="ing_name" data-pid="${p.id}" data-idx="${idx}" value="${escapeHtml(ing.name)}" />
                 </div>
                 <div>
-                  <label>Quantity</label>
-                  <input type="number" data-act="ing_qty" data-pid="${p.id}" data-idx="${idx}" value="${Number(ing.quantity||0)}" />
+                  <label>Quantity <span class="dirty-indicator" data-dirty-for="ing-${p.id}-${idx}" hidden></span></label>
+                  <input type="text" inputmode="decimal" data-numeric="true" data-act="ing_qty" data-pid="${p.id}" data-idx="${idx}"
+                    value="${escapeHtml(getInputDisplayValue(`ing-${p.id}-${idx}`, Number(ing.quantity || 0)))}" />
+                  <div class="input-error" data-error-for="ing-${p.id}-${idx}" hidden></div>
                 </div>
                 <div>
                   <label>Unit</label>
@@ -2711,13 +3011,37 @@ function renderMaking() {
         if (!ing) return;
 
         if (act === "ing_name") ing.name = e.target.value;
-        if (act === "ing_qty") ing.quantity = Number(e.target.value);
         if (act === "ing_unit") ing.unit = e.target.value;
         if (act === "ing_time") ing.bakeTiming = e.target.value;
         if (act === "ing_rule") ing.scalingRule = e.target.value;
       }
 
       saveCustomPizzaPresets(list);
+    });
+
+    $$('input[data-act="ing_qty"]', root).forEach((input) => {
+      const pid = input.dataset.pid;
+      const idx = Number(input.dataset.idx);
+      bindNumericInput(input, {
+        key: `ing-${pid}-${idx}`,
+        getValue: () => {
+          const list = loadCustomPizzaPresets();
+          const preset = list.find((x) => x.id === pid);
+          const ing = preset?.ingredients?.[idx];
+          return Number(ing?.quantity || 0);
+        },
+        setValue: (value) => {
+          const list = loadCustomPizzaPresets();
+          const preset = list.find((x) => x.id === pid);
+          const ing = preset?.ingredients?.[idx];
+          if (ing) {
+            ing.quantity = value;
+            saveCustomPizzaPresets(list);
+          }
+        },
+        min: 0,
+        onCommit: () => {}
+      });
     });
   }
 
@@ -2772,6 +3096,16 @@ function renderMaking() {
         if (STATE.activeTab === "debug") renderDebug();
       }
     });
+    document.addEventListener(
+      "wheel",
+      (e) => {
+        const target = e.target;
+        if (target instanceof HTMLInputElement && target.dataset.numeric === "true" && document.activeElement === target) {
+          e.preventDefault();
+        }
+      },
+      { passive: false }
+    );
     document.addEventListener("change", (e) => {
       LAST_CHANGED_INPUT_KEY = describeInputKey(e.target);
       if (STATE.debugMode) {
