@@ -2776,6 +2776,12 @@ function renderMaking() {
       </div>
     </div>
 
+    <div class="card">
+      <h2>Pizzaiolo</h2>
+      <p>Execution console: measure, weigh, and run the timeline.</p>
+    </div>
+
+
     ${ingredientWarnings}
     ${hasPref ? prefermentStepA + prefermentStepB + totalsReference : weighOutTotals}
     ${hasPref ? `
