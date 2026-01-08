@@ -1,0 +1,272 @@
+﻿{
+  "schema_version": "1.0.0",
+  "methods": [
+    {
+      "id": "direct",
+      "display_name": "Direct Dough",
+      "category": "direct",
+      "supports": {
+        "preferment": false,
+        "sourdough": false,
+        "pan": false
+      },
+      "phases": ["mix", "bulk", "ball", "bake"],
+      "time_anchors": ["mix_start", "bulk_start", "ball_time", "preheat_start", "bake_time", "serve_time"],
+      "required_fields": [
+        "pizza_count",
+        "dough_ball_weight_g",
+        "hydration_percent",
+        "salt_percent",
+        "yeast_type",
+        "yeast_percent",
+        "ambient_temp_c",
+        "fridge_temp_c",
+        "bulk_ferment_hours",
+        "cold_ferment_hours",
+        "ball_ferment_hours"
+      ],
+      "optional_fields": [
+        "flour_temp_c",
+        "target_fdt_c",
+        "mixer_profile_id",
+        "process_mode",
+        "honey_percent",
+        "oil_percent",
+        "sugar_percent",
+        "diastatic_malt_percent"
+      ],
+      "notes_md": [
+        "All flour and water are mixed in the final dough (no preferment).",
+        "Presets can still choose same-day or cold-ferment schedules."
+      ]
+    },
+
+    {
+      "id": "biga",
+      "display_name": "Biga Method",
+      "category": "preferment",
+      "supports": {
+        "preferment": true,
+        "sourdough": false,
+        "pan": false
+      },
+      "preferment": {
+        "type": "biga",
+        "default_hydration_percent": 45,
+        "default_flour_percent_of_total": 50
+      },
+      "phases": ["preferment_build", "final_mix", "bulk", "ball", "bake"],
+      "time_anchors": ["preferment_start", "final_mix_start", "bulk_start", "ball_time", "preheat_start", "bake_time", "serve_time"],
+      "required_fields": [
+        "pizza_count",
+        "dough_ball_weight_g",
+        "hydration_percent",
+        "salt_percent",
+        "yeast_type",
+        "yeast_percent",
+        "ambient_temp_c",
+        "fridge_temp_c",
+        "bulk_ferment_hours",
+        "cold_ferment_hours",
+        "ball_ferment_hours",
+        "preferment_flour_percent_of_total",
+        "preferment_hydration_percent",
+        "preferment_mature_hours"
+      ],
+      "optional_fields": [
+        "flour_temp_c",
+        "target_fdt_c",
+        "mixer_profile_id",
+        "process_mode",
+        "honey_percent",
+        "oil_percent",
+        "sugar_percent",
+        "diastatic_malt_percent"
+      ],
+      "notes_md": [
+        "Biga is a stiff preferment. Presets set biga % and maturity targets.",
+        "Final dough combines biga with remaining water/salt/yeast and the rest of the flour."
+      ]
+    },
+
+    {
+      "id": "poolish",
+      "display_name": "Poolish Method",
+      "category": "preferment",
+      "supports": {
+        "preferment": true,
+        "sourdough": false,
+        "pan": false
+      },
+      "preferment": {
+        "type": "poolish",
+        "default_hydration_percent": 100,
+        "default_flour_percent_of_total": 30
+      },
+      "phases": ["preferment_build", "final_mix", "bulk", "ball", "bake"],
+      "time_anchors": ["preferment_start", "final_mix_start", "bulk_start", "ball_time", "preheat_start", "bake_time", "serve_time"],
+      "required_fields": [
+        "pizza_count",
+        "dough_ball_weight_g",
+        "hydration_percent",
+        "salt_percent",
+        "yeast_type",
+        "yeast_percent",
+        "ambient_temp_c",
+        "fridge_temp_c",
+        "bulk_ferment_hours",
+        "cold_ferment_hours",
+        "ball_ferment_hours",
+        "preferment_flour_percent_of_total",
+        "preferment_hydration_percent",
+        "preferment_mature_hours"
+      ],
+      "optional_fields": [
+        "flour_temp_c",
+        "target_fdt_c",
+        "mixer_profile_id",
+        "process_mode",
+        "honey_percent",
+        "oil_percent",
+        "sugar_percent",
+        "diastatic_malt_percent"
+      ],
+      "notes_md": [
+        "Poolish is a liquid preferment. Presets define poolish % and maturity targets.",
+        "Final dough combines poolish with remaining flour/salt and any remaining water."
+      ]
+    },
+
+    {
+      "id": "sourdough",
+      "display_name": "Sourdough Method",
+      "category": "sourdough",
+      "supports": {
+        "preferment": false,
+        "sourdough": true,
+        "pan": false
+      },
+      "starter": {
+        "default_hydration_percent": 100,
+        "default_inoculation_percent_of_flour": 20
+      },
+      "phases": ["starter_prep", "mix", "bulk", "ball", "bake"],
+      "time_anchors": ["starter_feed_time", "mix_start", "bulk_start", "ball_time", "preheat_start", "bake_time", "serve_time"],
+      "required_fields": [
+        "pizza_count",
+        "dough_ball_weight_g",
+        "hydration_percent",
+        "salt_percent",
+        "ambient_temp_c",
+        "fridge_temp_c",
+        "bulk_ferment_hours",
+        "cold_ferment_hours",
+        "ball_ferment_hours",
+        "starter_hydration_percent",
+        "starter_inoculation_percent",
+        "starter_peak_window_hours"
+      ],
+      "optional_fields": [
+        "flour_temp_c",
+        "target_fdt_c",
+        "mixer_profile_id",
+        "process_mode",
+        "honey_percent",
+        "oil_percent",
+        "sugar_percent",
+        "diastatic_malt_percent"
+      ],
+      "notes_md": [
+        "Sourdough uses starter inoculation instead of commercial yeast (or can be hybrid in presets later).",
+        "Starter readiness and dough temperature strongly influence fermentation speed."
+      ]
+    },
+
+    {
+      "id": "pan",
+      "display_name": "Pan Pizza Method",
+      "category": "pan",
+      "supports": {
+        "preferment": true,
+        "sourdough": true,
+        "pan": true
+      },
+      "phases": ["mix", "bulk", "pan_proof", "bake"],
+      "time_anchors": ["mix_start", "bulk_start", "pan_proof_start", "preheat_start", "bake_time", "serve_time"],
+      "required_fields": [
+        "tray_count",
+        "dough_per_tray_g",
+        "hydration_percent",
+        "salt_percent",
+        "ambient_temp_c",
+        "fridge_temp_c",
+        "bulk_ferment_hours",
+        "cold_ferment_hours",
+        "pan_proof_hours"
+      ],
+      "optional_fields": [
+        "yeast_type",
+        "yeast_percent",
+        "starter_hydration_percent",
+        "starter_inoculation_percent",
+        "preferment_flour_percent_of_total",
+        "preferment_hydration_percent",
+        "preferment_mature_hours",
+        "flour_temp_c",
+        "target_fdt_c",
+        "mixer_profile_id",
+        "oil_percent",
+        "sugar_percent",
+        "diastatic_malt_percent"
+      ],
+      "notes_md": [
+        "Pan method is defined by proofing in the pan/tray and bake behavior, not just formula.",
+        "Presets (e.g., Bonci) will specify oiling, dimple technique, and proof stages."
+      ]
+    },
+
+    {
+      "id": "focaccia",
+      "display_name": "Focaccia Method",
+      "category": "focaccia",
+      "supports": {
+        "preferment": true,
+        "sourdough": true,
+        "pan": true
+      },
+      "phases": ["mix", "bulk", "pan_proof", "dimple", "bake"],
+      "time_anchors": ["mix_start", "bulk_start", "pan_proof_start", "preheat_start", "bake_time", "serve_time"],
+      "required_fields": [
+        "tray_count",
+        "dough_per_tray_g",
+        "hydration_percent",
+        "salt_percent",
+        "ambient_temp_c",
+        "fridge_temp_c",
+        "bulk_ferment_hours",
+        "cold_ferment_hours",
+        "pan_proof_hours"
+      ],
+      "optional_fields": [
+        "yeast_type",
+        "yeast_percent",
+        "starter_hydration_percent",
+        "starter_inoculation_percent",
+        "preferment_flour_percent_of_total",
+        "preferment_hydration_percent",
+        "preferment_mature_hours",
+        "flour_temp_c",
+        "target_fdt_c",
+        "mixer_profile_id",
+        "oil_percent",
+        "sugar_percent",
+        "diastatic_malt_percent",
+        "dough_inclusions"
+      ],
+      "notes_md": [
+        "Focaccia is a pan method with high hydration, oil, dimpling, and often inclusions.",
+        "Presets specify brine, oil quantity, and topping/inclusion handling."
+      ]
+    }
+  ]
+}

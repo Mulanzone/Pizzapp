@@ -1,0 +1,65 @@
+﻿{
+  "schema_version": "1.0.0",
+  "mixers": [
+    {
+      "id": "hand_knead",
+      "display_name": "Hand Kneading",
+      "mixer_class": "hand",
+      "friction_factor_c_range": [2, 4],
+      "notes_md": [
+        "Lowest heat input; depends heavily on intensity and duration.",
+        "Good baseline when you want slower fermentation and more control."
+      ],
+      "calibration": {
+        "last_updated": null,
+        "measured_heat_gain_c": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "stand_mixer_planetary",
+      "display_name": "Stand Mixer (Planetary)",
+      "mixer_class": "planetary",
+      "friction_factor_c_range": [5, 8],
+      "notes_md": [
+        "Moderate-to-high heat input, especially at higher speed or long mix times.",
+        "Common reference point for home pizza workflows."
+      ],
+      "calibration": {
+        "last_updated": null,
+        "measured_heat_gain_c": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "spiral_mixer",
+      "display_name": "Spiral Mixer",
+      "mixer_class": "spiral",
+      "friction_factor_c_range": [8, 12],
+      "notes_md": [
+        "Higher heat input typical of longer development and larger batch energy transfer.",
+        "Often used for stronger dough development with repeatability."
+      ],
+      "calibration": {
+        "last_updated": null,
+        "measured_heat_gain_c": null,
+        "notes": ""
+      }
+    },
+    {
+      "id": "halo_mixer",
+      "display_name": "Halo Mixer",
+      "mixer_class": "other",
+      "friction_factor_c_range": [5, 8],
+      "notes_md": [
+        "Initial estimate aligned to planetary stand-mixer behavior.",
+        "Calibrate after a few sessions by logging post-mix dough temperature."
+      ],
+      "calibration": {
+        "last_updated": null,
+        "measured_heat_gain_c": null,
+        "notes": ""
+      }
+    }
+  ]
+}

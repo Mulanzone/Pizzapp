@@ -1,0 +1,573 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://littletabletsrxco.local/schema/dough_presets.schema.json",
+  "title": "Dough Preset Schema",
+  "type": "object",
+  "required": [
+    "preset_type",
+    "id",
+    "version",
+    "dough_method_id",
+    "display",
+    "flour_characteristics",
+    "capabilities",
+    "defaults",
+    "temperature_control",
+    "fermentation_model",
+    "mixing_model",
+    "session_ui",
+    "formula",
+    "timeline"
+  ],
+  "additionalProperties": false,
+
+  "properties": {
+    "preset_type": {
+      "type": "string",
+      "const": "dough_preset",
+      "description": "Discriminator field to distinguish presets from other config objects."
+    },
+
+    "id": { "$ref": "#/$defs/id" },
+    "version": { "$ref": "#/$defs/semver" },
+
+    "dough_method_id": {
+      "$ref": "#/$defs/id",
+      "description": "References an entry in dough_methods.json (e.g., direct, biga, poolish, sourdough, pan, focaccia)."
+    },
+
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "author": { "type": "string", "maxLength": 120 },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 40 },
+          "default": []
+        },
+        "description": { "type": "string", "maxLength": 500 }
+      }
+    },
+
+    "flour_characteristics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strength_descriptor"],
+      "properties": {
+        "protein_percent_range": { "$ref": "#/$defs/rangePercentProtein" },
+        "w_value_range": { "$ref": "#/$defs/rangeW" },
+        "strength_descriptor": {
+          "type": "string",
+          "enum": ["very_weak", "weak", "medium", "medium_strong", "strong", "very_strong", "unknown"]
+        },
+        "notes_md": { "$ref": "#/$defs/markdownArray" }
+      }
+    },
+
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flags"],
+      "properties": {
+        "flags": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "supportsPreferment",
+            "supportsSourdough",
+            "supportsColdFerment",
+            "supportsSameDay",
+            "supportsAutolyse",
+            "useHoney",
+            "useOil",
+            "useSugar",
+            "useDiastaticMalt"
+          ],
+          "properties": {
+            "supportsPreferment": { "type": "boolean" },
+            "supportsSourdough": { "type": "boolean" },
+            "supportsColdFerment": { "type": "boolean" },
+            "supportsSameDay": { "type": "boolean" },
+            "supportsAutolyse": { "type": "boolean" },
+
+            "useHoney": { "type": "boolean" },
+            "useOil": { "type": "boolean" },
+            "useSugar": { "type": "boolean" },
+            "useDiastaticMalt": { "type": "boolean" }
+          }
+        }
+      }
+    },
+
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["batch", "formula", "process"],
+      "properties": {
+        "batch": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pizza_count", "dough_ball_weight_g"],
+          "properties": {
+            "pizza_count": { "type": "integer", "minimum": 1, "maximum": 200 },
+            "dough_ball_weight_g": { "type": "number", "minimum": 80, "maximum": 800 }
+          }
+        },
+        "formula": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["hydration_percent", "salt_percent", "yeast"],
+          "properties": {
+            "hydration_percent": { "$ref": "#/$defs/percentHydration" },
+            "salt_percent": { "$ref": "#/$defs/percentSalt" },
+            "yeast": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "percent_of_flour"],
+              "properties": {
+                "type": { "$ref": "#/$defs/yeastType" },
+                "percent_of_flour": { "$ref": "#/$defs/percentYeast" }
+              }
+            },
+            "honey_percent": { "$ref": "#/$defs/percentAddon" },
+            "oil_percent": { "$ref": "#/$defs/percentAddon" },
+            "sugar_percent": { "$ref": "#/$defs/percentAddon" },
+            "diastatic_malt_percent": { "$ref": "#/$defs/percentAddon" }
+          }
+        },
+        "process": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "ambient_temp_c",
+            "fridge_temp_c",
+            "bulk_ferment_hours",
+            "cold_ferment_hours",
+            "ball_ferment_hours"
+          ],
+          "properties": {
+            "mode": { "$ref": "#/$defs/processMode" },
+            "ambient_temp_c": { "$ref": "#/$defs/tempC" },
+            "fridge_temp_c": { "$ref": "#/$defs/tempC" },
+            "bulk_ferment_hours": { "$ref": "#/$defs/hours" },
+            "cold_ferment_hours": { "$ref": "#/$defs/hours" },
+            "ball_ferment_hours": { "$ref": "#/$defs/hours" }
+          }
+        }
+      }
+    },
+
+    "temperature_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "use_fdt_model",
+        "desired_fdt_c_range",
+        "water_temp_formula",
+        "requires_post_mix_temp_check"
+      ],
+      "properties": {
+        "use_fdt_model": { "type": "boolean" },
+        "desired_fdt_c_range": { "$ref": "#/$defs/rangeTempC" },
+        "water_temp_formula": {
+          "type": "string",
+          "enum": ["3_factor"]
+        },
+        "requires_post_mix_temp_check": { "type": "boolean" },
+        "correction_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "warn_if_off_by_c": { "type": "number", "minimum": 0, "maximum": 10, "default": 2 },
+            "notes_md": { "$ref": "#/$defs/markdownArray" }
+          }
+        }
+      }
+    },
+
+    "fermentation_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "baseline", "adjustment", "calibration"],
+      "properties": {
+        "reference": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ambient_temp_c", "fridge_temp_c"],
+          "properties": {
+            "ambient_temp_c": { "$ref": "#/$defs/tempC" },
+            "fridge_temp_c": { "$ref": "#/$defs/tempC" }
+          }
+        },
+        "baseline": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["bulk_hours", "cold_hours", "ball_hours"],
+          "properties": {
+            "bulk_hours": { "$ref": "#/$defs/hours" },
+            "cold_hours": { "$ref": "#/$defs/hours" },
+            "ball_hours": { "$ref": "#/$defs/hours" }
+          }
+        },
+        "adjustment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["model"],
+          "properties": {
+            "model": { "type": "string", "enum": ["bands", "q10"] },
+            "q10": { "type": "number", "minimum": 1.0, "maximum": 4.0 },
+            "ambient_bands": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/ambientBand" },
+              "minItems": 1
+            }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "model": { "const": "q10" } } },
+              "then": { "required": ["q10"] }
+            },
+            {
+              "if": { "properties": { "model": { "const": "bands" } } },
+              "then": { "required": ["ambient_bands"] }
+            }
+          ]
+        },
+        "calibration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fermentation_speed_factor"],
+          "properties": {
+            "fermentation_speed_factor": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 2.0,
+              "default": 1.0
+            },
+            "notes": { "type": "string", "default": "" }
+          }
+        }
+      }
+    },
+
+    "mixing_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mix_method", "development_target", "time_guidance_min"],
+      "properties": {
+        "mix_method": {
+          "type": "string",
+          "enum": ["standard", "salt_first", "autolyse", "bassinage", "preferment_first"]
+        },
+        "recommended_mixer_profile_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "default": []
+        },
+        "autolyse": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "minutes"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "minutes": { "type": "number", "minimum": 0, "maximum": 240 }
+          }
+        },
+        "bassinage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "water_percent"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "water_percent": { "type": "number", "minimum": 0, "maximum": 30 }
+          }
+        },
+        "development_target": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "time_guidance_min": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "hand": { "$ref": "#/$defs/rangeMinutes" },
+            "mixer": { "$ref": "#/$defs/rangeMinutes" }
+          },
+          "minProperties": 1
+        },
+        "rests": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restStep" },
+          "default": []
+        }
+      }
+    },
+
+    "dough_inclusions": {
+      "type": "array",
+      "default": [],
+      "items": { "$ref": "#/$defs/inclusion" }
+    },
+
+    "session_ui": { "$ref": "#/$defs/sessionUI" },
+
+    "formula": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed_yeast_types", "inputs", "ingredient_mapping"],
+      "properties": {
+        "allowed_yeast_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/yeastType" }
+        },
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "ingredient_mapping": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/ingredientRole" }
+        }
+      }
+    },
+
+    "timeline": { "$ref": "#/$defs/timeline" },
+
+    "oven_recommendations": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["oven_id", "program_ids"],
+        "properties": {
+          "oven_id": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "program_ids": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } },
+          "notes_md": { "$ref": "#/$defs/markdownArray" }
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 80,
+      "pattern": "^[a-z0-9]+(?:[a-z0-9_\\-]*[a-z0-9]+)?$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "markdownArray": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+
+    "tempC": { "type": "number", "minimum": -5, "maximum": 60 },
+    "rangeTempC": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "$ref": "#/$defs/tempC" }
+    },
+
+    "hours": { "type": "number", "minimum": 0, "maximum": 240 },
+    "rangeMinutes": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "type": "number", "minimum": 0, "maximum": 600 }
+    },
+
+    "percentHydration": { "type": "number", "minimum": 45, "maximum": 95 },
+    "percentSalt": { "type": "number", "minimum": 0.5, "maximum": 5.0 },
+    "percentYeast": { "type": "number", "minimum": 0.0, "maximum": 3.0 },
+    "percentAddon": { "type": "number", "minimum": 0.0, "maximum": 10.0 },
+
+    "rangePercentProtein": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "type": "number", "minimum": 6, "maximum": 20 }
+    },
+    "rangeW": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "type": "integer", "minimum": 80, "maximum": 450 }
+    },
+
+    "yeastType": {
+      "type": "string",
+      "enum": ["IDY", "ADY", "Fresh", "SourdoughStarter"]
+    },
+    "processMode": {
+      "type": "string",
+      "enum": ["same_day", "cold_ferment", "preferment", "sourdough"]
+    },
+
+    "ambientBand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["temp_c", "time_multiplier"],
+      "properties": {
+        "temp_c": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/tempC" }
+        },
+        "time_multiplier": { "type": "number", "minimum": 0.2, "maximum": 3.0 }
+      }
+    },
+
+    "restStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["after_step_id", "minutes", "purpose"],
+      "properties": {
+        "after_step_id": { "$ref": "#/$defs/id" },
+        "minutes": { "type": "number", "minimum": 0, "maximum": 240 },
+        "purpose": { "type": "string", "maxLength": 60 }
+      }
+    },
+
+    "inclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "display_name", "added_at_step_id"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "display_name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "default_g_per_kg_flour": { "type": "number", "minimum": 0, "maximum": 500 },
+        "added_at_step_id": { "$ref": "#/$defs/id" },
+        "notes_md": { "$ref": "#/$defs/markdownArray" }
+      }
+    },
+
+    "sessionUI": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sections"],
+      "properties": {
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/sessionSection" }
+        }
+      }
+    },
+    "sessionSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "fields"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "title": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "subtitle": { "type": "string", "maxLength": 200 },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/uiFieldRef" }
+        }
+      }
+    },
+    "uiFieldRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_id"],
+      "properties": {
+        "field_id": { "$ref": "#/$defs/id" },
+        "default": {},
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "visible_when": { "$ref": "#/$defs/condition" },
+        "enabled_when": { "$ref": "#/$defs/condition" }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "always": { "type": "boolean" },
+        "flag": { "type": "string", "maxLength": 80 },
+        "field": { "type": "string", "maxLength": 80 },
+        "equals": {},
+        "in": { "type": "array", "items": {} }
+      },
+      "anyOf": [
+        { "required": ["always"] },
+        { "required": ["flag", "equals"] },
+        { "required": ["field", "equals"] },
+        { "required": ["field", "in"] }
+      ]
+    },
+
+    "ingredientRole": {
+      "type": "string",
+      "enum": ["flour", "water", "salt", "yeast", "honey", "oil", "sugar", "diastaticMalt", "other"]
+    },
+
+    "timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sections"],
+      "properties": {
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/timelineSection" }
+        }
+      }
+    },
+    "timelineSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "steps"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "title": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "description": { "type": "string", "maxLength": 300 },
+        "when": { "$ref": "#/$defs/condition" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/timelineStep" }
+        }
+      }
+    },
+    "timelineStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "instructions_md"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "title": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "instructions_md": { "$ref": "#/$defs/markdownArray" },
+        "when": { "$ref": "#/$defs/condition" },
+        "schedule": { "$ref": "#/$defs/scheduleRule" }
+      }
+    },
+    "scheduleRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor"],
+      "properties": {
+        "anchor": {
+          "type": "string",
+          "enum": ["serve_time", "bake_time", "preheat_start", "mix_start", "bulk_start", "cold_start", "ball_time"]
+        },
+        "offset_minutes": { "type": "integer", "minimum": -10080, "maximum": 10080 }
+      }
+    }
+  }
+}

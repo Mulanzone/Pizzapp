@@ -1,0 +1,252 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://littletabletsrxco.local/schema/ovens.schema.json",
+  "title": "Oven Registry Schema",
+  "type": "object",
+  "required": ["schema_version", "ovens"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "ovens": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/oven" }
+    }
+  },
+
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 80,
+      "pattern": "^[a-z0-9]+(?:[a-z0-9_\\-]*[a-z0-9]+)?$"
+    },
+
+    "markdownArray": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+
+    "fahrenheit": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1200
+    },
+
+    "minutes": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 600
+    },
+
+    "seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 7200
+    },
+
+    "rangeNumber": {
+      "description": "A numeric range [min,max]. Must be ordered.",
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "type": "number" }
+    },
+
+    "rangeF": {
+      "description": "A temperature range in °F: [min,max].",
+      "allOf": [
+        { "$ref": "#/$defs/rangeNumber" },
+        {
+          "items": { "$ref": "#/$defs/fahrenheit" }
+        }
+      ]
+    },
+
+    "rangeSeconds": {
+      "description": "A time range in seconds: [min,max].",
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "$ref": "#/$defs/seconds" }
+    },
+
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supports_round_only", "supports_pan", "max_pizza_diameter_in"],
+      "properties": {
+        "supports_round_only": { "type": "boolean" },
+        "supports_pan": { "type": "boolean" },
+        "max_pizza_diameter_in": {
+          "type": "number",
+          "minimum": 6,
+          "maximum": 30
+        }
+      }
+    },
+
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "has_separate_deck_and_top_control": { "type": "boolean", "default": false },
+        "has_broiler": { "type": "boolean", "default": false },
+        "allow_manual_override": { "type": "boolean", "default": true }
+      }
+    },
+
+    "preheat": {
+      "description": "Preheat guidance. Use null for unknown initial values (e.g., first WFO firing).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "preheat_target_minutes": {
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/minutes" }
+          ],
+          "default": null
+        },
+        "readiness_rule": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "notes_md": { "$ref": "#/$defs/markdownArray" }
+      },
+      "required": ["preheat_target_minutes", "readiness_rule"]
+    },
+
+    "tempTargetsF": {
+      "description": "Temperature targets as ranges in °F. Provide what the program meaningfully targets.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "deck": { "$ref": "#/$defs/rangeF" },
+        "top": { "$ref": "#/$defs/rangeF" },
+        "air": { "$ref": "#/$defs/rangeF" }
+      },
+      "minProperties": 1
+    },
+
+    "program": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "display_name", "launch_method", "temp_targets_f", "bake_time_seconds", "rotation_strategy"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "display_name": { "type": "string", "minLength": 2, "maxLength": 80 },
+
+        "launch_method": {
+          "type": "string",
+          "enum": [
+            "on_deck",
+            "on_steel_or_stone",
+            "screen",
+            "pan_required",
+            "on_deck_or_pan"
+          ]
+        },
+
+        "temp_targets_f": { "$ref": "#/$defs/tempTargetsF" },
+
+        "bake_time_seconds": {
+          "description": "Either a single fixed time [t,t] or a range [min,max].",
+          "$ref": "#/$defs/rangeSeconds"
+        },
+
+        "rotation_strategy": {
+          "type": "string",
+          "enum": [
+            "none",
+            "none_or_as_needed",
+            "optional_once",
+            "once_halfway",
+            "frequent",
+            "optional"
+          ]
+        },
+
+        "notes_md": { "$ref": "#/$defs/markdownArray" },
+
+        "fire_management": {
+          "description": "Optional, relevant mainly for WFO/gas flame-managed ovens.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "live_flame": { "type": "boolean" },
+            "coal_bed": {
+              "type": "string",
+              "enum": ["none", "light", "maintain", "heavy"]
+            },
+            "flame_side": {
+              "type": "string",
+              "enum": ["left", "right", "rear", "balanced", "unknown"]
+            }
+          }
+        }
+      }
+    },
+
+    "calibration": {
+      "description": "Freeform fields to track real-world learnings over time.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "last_updated": {
+          "anyOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date-time" }
+          ],
+          "default": null
+        },
+        "notes": { "type": "string", "default": "" }
+      }
+    },
+
+    "oven": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "display_name", "fuel_type", "constraints", "capabilities", "programs"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "display_name": { "type": "string", "minLength": 2, "maxLength": 100 },
+
+        "fuel_type": {
+          "type": "string",
+          "enum": ["wood", "electric", "gas", "electric_or_gas"]
+        },
+
+        "constraints": { "$ref": "#/$defs/constraints" },
+        "capabilities": { "$ref": "#/$defs/capabilities" },
+
+        "preheat": { "$ref": "#/$defs/preheat" },
+        "programs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/program" }
+        },
+
+        "calibration": { "$ref": "#/$defs/calibration" }
+      },
+
+      "allOf": [
+        {
+          "if": {
+            "properties": { "fuel_type": { "const": "wood" } }
+          },
+          "then": {
+            "properties": {
+              "preheat": { "$ref": "#/$defs/preheat" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

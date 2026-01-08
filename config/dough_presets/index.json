@@ -1,0 +1,42 @@
+﻿{
+  "app": {
+    "name": "Pizza Production Planner",
+    "version": "2.0.0",
+    "schemaVersion": 1
+  },
+
+  "modules": {
+    "dough_methods": {
+      "file": "dough_methods.json",
+      "schema": "dough_methods.schema.json",
+      "enabled": true,
+      "default": "direct_neapolitan"
+    },
+
+    "mixers": {
+      "file": "mixers.json",
+      "schema": "mixers.schema.json",
+      "enabled": true,
+      "default": "hand"
+    },
+
+    "ovens": {
+      "file": "ovens.json",
+      "schema": "ovens.schema.json",
+      "enabled": true,
+      "default": "wfo_standard"
+    },
+
+    "pizza_presets": {
+      "file": "pizza_presets.json",
+      "schema": "pizza_presets.schema.json",
+      "enabled": true
+    }
+  },
+
+  "runtime": {
+    "minDoughBalls": 6,
+    "defaultBallWeightG": 260,
+    "defaultYeastPct": 0.05
+  }
+}

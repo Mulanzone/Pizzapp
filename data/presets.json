@@ -1,0 +1,139 @@
+﻿{
+  "authorities": [
+    {
+      "id": "vito",
+      "name": "Vito Iacopelli",
+      "defaults": {
+        "hydrationPct": 65,
+        "saltPct": 2.8,
+        "honeyPct": 1.0,
+        "oilPct": 0.0,
+        "yeastStrength": "moderate",
+        "notes": "Baseline reference for outcomes. Strong emphasis on practical handling, readable process, and consistent results."
+      }
+    },
+    {
+      "id": "capuano",
+      "name": "Vincenzo Capuano",
+      "defaults": {
+        "hydrationPct": 62,
+        "saltPct": 2.7,
+        "honeyPct": 0.0,
+        "oilPct": 0.0,
+        "yeastStrength": "moderate",
+        "notes": "Neapolitan performance-driven: timing discipline, strong shaping cues, and high-heat bake readiness."
+      }
+    },
+    {
+      "id": "gemignani",
+      "name": "Tony Gemignani (Pizza Bible)",
+      "defaults": {
+        "hydrationPct": 63,
+        "saltPct": 2.5,
+        "honeyPct": 0.0,
+        "oilPct": 0.5,
+        "yeastStrength": "mild",
+        "notes": "Breadth of styles and repeatability; slightly more structured production approach."
+      }
+    },
+    {
+      "id": "bonci",
+      "name": "Gabriele Bonci (Teglia / Pan / High Hydration)",
+      "defaults": {
+        "hydrationPct": 78,
+        "saltPct": 2.6,
+        "honeyPct": 0.0,
+        "oilPct": 3.0,
+        "yeastStrength": "mild",
+        "notes": "High hydration, pan handling, oiling, and gentle dough management."
+      }
+    },
+    {
+      "id": "pizzavibes",
+      "name": "Benjamin Schmitz (Pizzavibes_bapi)",
+      "defaults": {
+        "hydrationPct": 64,
+        "saltPct": 2.6,
+        "honeyPct": 0.0,
+        "oilPct": 0.0,
+        "yeastStrength": "tempAware",
+        "notes": "Temperature-aware planning with DDT focus and adaptive fermentation logic."
+      }
+    },
+    {
+      "id": "bianco",
+      "name": "Chris Bianco",
+      "defaults": {
+        "hydrationPct": 62,
+        "saltPct": 2.4,
+        "honeyPct": 0.0,
+        "oilPct": 0.0,
+        "yeastStrength": "mild",
+        "notes": "Ingredient discipline, restraint, and classic execution cues."
+      }
+    }
+  ],
+  "styles": [
+    {
+      "id": "neapolitan_round",
+      "name": "Neapolitan Round",
+      "defaultBallWeightG": 260,
+      "gramsPerCm2": null,
+      "toppingLogic": "split",
+      "notes": "High heat. Minimal toppings. Fast bake."
+    },
+    {
+      "id": "calzone",
+      "name": "Calzone",
+      "defaultBallWeightG": 280,
+      "gramsPerCm2": null,
+      "toppingLogic": "before",
+      "notes": "Seal well; avoid overfilling; vent to prevent blowout."
+    },
+    {
+      "id": "panzerotti",
+      "name": "Panzerotti",
+      "defaultBallWeightG": 220,
+      "gramsPerCm2": null,
+      "toppingLogic": "before",
+      "notes": "Smaller filled format; seal edges; manage steam."
+    },
+    {
+      "id": "focaccia",
+      "name": "Focaccia",
+      "defaultBallWeightG": null,
+      "gramsPerCm2": 2.2,
+      "toppingLogic": "before",
+      "notes": "Pan proof, oil, dimple, longer bake."
+    },
+    {
+      "id": "teglia_bonci",
+      "name": "Bonci-Style Teglia / Pan",
+      "defaultBallWeightG": null,
+      "gramsPerCm2": 1.8,
+      "toppingLogic": "split",
+      "notes": "High hydration. Pan oiling. Par-bake + finish toppings is common."
+    },
+    {
+      "id": "pizza_rossa",
+      "name": "Pizza Rossa",
+      "defaultBallWeightG": null,
+      "gramsPerCm2": 1.6,
+      "toppingLogic": "before",
+      "notes": "Often sauce-forward; can be baked as a base then finished."
+    },
+    {
+      "id": "dessert_pizza",
+      "name": "Dessert Pizza",
+      "defaultBallWeightG": 240,
+      "gramsPerCm2": null,
+      "toppingLogic": "after",
+      "notes": "Bake base first; add sensitive toppings after."
+    }
+  ],
+  "flourBlends": [
+    { "id": "00_only", "name": "100% 00 Flour", "parts": [{ "name": "00 Flour", "pct": 100 }] },
+    { "id": "00_plus_bread", "name": "70% 00 + 30% Bread Flour", "parts": [{ "name": "00 Flour", "pct": 70 }, { "name": "Bread Flour", "pct": 30 }] },
+    { "id": "bonci_blend", "name": "Bonci Blend (50% Bread + 50% Strong)", "parts": [{ "name": "Bread Flour", "pct": 50 }, { "name": "Strong Flour", "pct": 50 }] }
+  ]
+}

@@ -1,0 +1,59 @@
+﻿{
+  "toppings": [
+    {
+      "id": "t_margherita",
+      "name": "Margherita (Classic)",
+      "category": "combo",
+      "bakeTiming": "split",
+      "ingredients": [
+        { "name": "San Marzano tomatoes (crushed)", "quantity": 90, "unit": "g", "scalingRule": "per_pizza" },
+        { "name": "Fresh mozzarella", "quantity": 85, "unit": "g", "scalingRule": "per_pizza" },
+        { "name": "Grated Parmigiano/Reggiano", "quantity": 8, "unit": "g", "scalingRule": "per_pizza" },
+        { "name": "Basil", "quantity": 4, "unit": "g", "scalingRule": "per_pizza" },
+        { "name": "Extra virgin olive oil", "quantity": 6, "unit": "g", "scalingRule": "per_pizza" }
+      ],
+      "prepSteps": [
+        { "text": "Drain mozzarella if wet; tear into pieces.", "timingHint": "Before bake" },
+        { "text": "Crush tomatoes; salt lightly; keep it simple.", "timingHint": "Before bake" },
+        { "text": "Sauce + mozzarella go on before bake. Basil + oil can be after or split.", "timingHint": "Split" }
+      ],
+      "image": null,
+      "notes": "Split timing: sauce + mozzarella before; basil/oil after."
+    },
+    {
+      "id": "t_pepperoni",
+      "name": "Pepperoni (Classic)",
+      "category": "meat",
+      "bakeTiming": "before",
+      "ingredients": [
+        { "name": "Pepperoni slices", "quantity": 45, "unit": "g", "scalingRule": "per_pizza" },
+        { "name": "Low-moisture mozzarella", "quantity": 110, "unit": "g", "scalingRule": "per_pizza" },
+        { "name": "Tomato sauce", "quantity": 85, "unit": "g", "scalingRule": "per_pizza" }
+      ],
+      "prepSteps": [
+        { "text": "Use low-moisture mozzarella for less pooling.", "timingHint": "Before bake" },
+        { "text": "Lay pepperoni flat; avoid stacking.", "timingHint": "Before bake" }
+      ],
+      "image": null,
+      "notes": ""
+    },
+    {
+      "id": "t_bonci_potato",
+      "name": "Bonci-Style Potato + Rosemary",
+      "category": "veg",
+      "bakeTiming": "split",
+      "ingredients": [
+        { "name": "Potatoes (thin sliced)", "quantity": 120, "unit": "g", "scalingRule": "per_pizza" },
+        { "name": "Rosemary", "quantity": 2, "unit": "g", "scalingRule": "per_pizza" },
+        { "name": "Extra virgin olive oil", "quantity": 10, "unit": "g", "scalingRule": "per_pizza" },
+        { "name": "Salt", "quantity": 1, "unit": "g", "scalingRule": "per_pizza" }
+      ],
+      "prepSteps": [
+        { "text": "Slice potatoes very thin; rinse and pat dry; toss with oil + salt.", "timingHint": "Before bake" },
+        { "text": "Par-bake base if doing teglia; add potatoes and finish to crisp.", "timingHint": "Split" }
+      ],
+      "image": null,
+      "notes": "Great for teglia/pan workflows."
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+﻿{
+  "presets": [
+    {
+      "id": "vito_poolish_neapolitan",
+      "label": "Vito - Neapolitan (Poolish + Honey)",
+      "description": "Poolish-forward Neapolitan with honey. Airy, extensible, aromatic.",
+      "defaults": {
+        "hydrationPct": 71.4,
+        "saltPct": 2.86,
+        "honeyPct": 0.71,
+        "prefermentType": "poolish",
+        "prefermentPct": 29,
+        "fermentationHours": 24,
+        "fermentationLocation": "cold",
+        "ddtC": 23
+      }
+    },
+    {
+      "id": "vito_direct_neapolitan",
+      "label": "Vito - Neapolitan (Direct + Honey)",
+      "description": "Direct dough with Vito-style honey for simpler scheduling.",
+      "defaults": {
+        "hydrationPct": 63.0,
+        "saltPct": 2.8,
+        "honeyPct": 0.5,
+        "prefermentType": "direct",
+        "prefermentPct": 0,
+        "fermentationHours": 24,
+        "fermentationLocation": "cold",
+        "ddtC": 23
+      }
+    },
+    {
+      "id": "capuano_biga_structure",
+      "label": "Capuano - Neapolitan (Biga / Structure)",
+      "description": "Structure-first Neapolitan with biga for lift and control.",
+      "defaults": {
+        "hydrationPct": 61.5,
+        "saltPct": 2.9,
+        "honeyPct": 0.0,
+        "prefermentType": "biga",
+        "prefermentPct": 45,
+        "fermentationHours": 24,
+        "fermentationLocation": "cold",
+        "ddtC": 23
+      }
+    },
+    {
+      "id": "capuano_direct_clean",
+      "label": "Capuano - Neapolitan (Direct / Clean)",
+      "description": "Direct, disciplined Neapolitan baseline.",
+      "defaults": {
+        "hydrationPct": 62.0,
+        "saltPct": 2.7,
+        "honeyPct": 0.0,
+        "prefermentType": "direct",
+        "prefermentPct": 0,
+        "fermentationHours": 24,
+        "fermentationLocation": "cold",
+        "ddtC": 23
+      }
+    },
+    {
+      "id": "gemignani_precision",
+      "label": "Gemignani - Precision Neapolitan",
+      "description": "Repeatable, production-focused Neapolitan baseline.",
+      "defaults": {
+        "hydrationPct": 62.5,
+        "saltPct": 2.6,
+        "honeyPct": 0.0,
+        "prefermentType": "direct",
+        "prefermentPct": 0,
+        "fermentationHours": 24,
+        "fermentationLocation": "cold",
+        "ddtC": 23
+      }
+    },
+    {
+      "id": "bonci_teglia_high_hydration",
+      "label": "Bonci - Teglia / Pan (High Hydration)",
+      "description": "High hydration teglia-style dough. Oil support recommended later.",
+      "defaults": {
+        "hydrationPct": 80.0,
+        "saltPct": 2.6,
+        "honeyPct": 0.0,
+        "prefermentType": "poolish",
+        "prefermentPct": 60,
+        "fermentationHours": 48,
+        "fermentationLocation": "cold",
+        "ddtC": 24
+      }
+    },
+    {
+      "id": "bapi_temp_aware",
+      "label": "BAPI - Temperature-Driven",
+      "description": "DDT-first workflow for consistency.",
+      "defaults": {
+        "hydrationPct": 63.0,
+        "saltPct": 2.8,
+        "honeyPct": 0.0,
+        "prefermentType": "direct",
+        "prefermentPct": 0,
+        "fermentationHours": 24,
+        "fermentationLocation": "cold",
+        "ddtC": 24
+      }
+    },
+    {
+      "id": "manual",
+      "label": "Custom / Manual",
+      "description": "You control every parameter.",
+      "defaults": null
+    }
+  ]
+}

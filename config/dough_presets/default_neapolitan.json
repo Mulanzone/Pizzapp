@@ -1,0 +1,345 @@
+﻿{
+  "preset_type": "dough_preset",
+  "id": "default_neapolitan",
+  "version": "1.0.0",
+  "dough_method_id": "direct",
+
+  "display": {
+    "name": "Default Neapolitan (Baseline)",
+    "author": "Little Tablets Rx Co.",
+    "tags": ["neapolitan", "baseline", "direct_dough"],
+    "description": "A straightforward Neapolitan baseline designed to work across WFO, Breville, and home oven programs."
+  },
+
+  "flour_characteristics": {
+    "protein_percent_range": [11.5, 12.8],
+    "w_value_range": [260, 300],
+    "strength_descriptor": "medium_strong",
+    "notes_md": [
+      "Designed around typical Tipo 00 / strong 00 blends suitable for 24–48h fermentation.",
+      "Adjust hydration and fermentation based on flour strength and temperature."
+    ]
+  },
+
+  "capabilities": {
+    "flags": {
+      "supportsPreferment": true,
+      "supportsSourdough": true,
+      "supportsColdFerment": true,
+      "supportsSameDay": true,
+      "supportsAutolyse": true,
+
+      "useHoney": false,
+      "useOil": false,
+      "useSugar": false,
+      "useDiastaticMalt": false
+    }
+  },
+
+  "defaults": {
+    "batch": {
+      "pizza_count": 6,
+      "dough_ball_weight_g": 260
+    },
+    "formula": {
+      "hydration_percent": 62,
+      "salt_percent": 2.8,
+      "yeast": {
+        "type": "IDY",
+        "percent_of_flour": 0.05
+      },
+      "honey_percent": 0,
+      "oil_percent": 0,
+      "sugar_percent": 0,
+      "diastatic_malt_percent": 0
+    },
+    "process": {
+      "mode": "cold_ferment",
+      "ambient_temp_c": 21,
+      "fridge_temp_c": 4,
+      "bulk_ferment_hours": 2,
+      "cold_ferment_hours": 24,
+      "ball_ferment_hours": 4
+    }
+  },
+
+  "temperature_control": {
+    "use_fdt_model": true,
+    "desired_fdt_c_range": [23, 25],
+    "water_temp_formula": "3_factor",
+    "requires_post_mix_temp_check": true,
+    "correction_policy": {
+      "warn_if_off_by_c": 2,
+      "notes_md": [
+        "Measure dough temperature immediately after mixing.",
+        "If dough is warmer than target, reduce next batch water temperature and/or shorten warm fermentation before refrigeration."
+      ]
+    }
+  },
+
+  "fermentation_model": {
+    "reference": {
+      "ambient_temp_c": 21,
+      "fridge_temp_c": 4
+    },
+    "baseline": {
+      "bulk_hours": 2,
+      "cold_hours": 24,
+      "ball_hours": 4
+    },
+    "adjustment": {
+      "model": "bands",
+      "ambient_bands": [
+        { "temp_c": [18, 20], "time_multiplier": 1.15 },
+        { "temp_c": [21, 24], "time_multiplier": 1.0 },
+        { "temp_c": [25, 27], "time_multiplier": 0.85 }
+      ]
+    },
+    "calibration": {
+      "fermentation_speed_factor": 1.0,
+      "notes": ""
+    }
+  },
+
+  "mixing_model": {
+    "mix_method": "standard",
+    "recommended_mixer_profile_ids": ["hand_knead", "stand_mixer_planetary", "halo_mixer"],
+    "autolyse": {
+      "enabled": false,
+      "minutes": 0
+    },
+    "bassinage": {
+      "enabled": false,
+      "water_percent": 0
+    },
+    "development_target": "medium",
+    "time_guidance_min": {
+      "hand": [8, 12],
+      "mixer": [5, 8]
+    },
+    "rests": [
+      {
+        "after_step_id": "initial_mix",
+        "minutes": 15,
+        "purpose": "gluten_relaxation"
+      }
+    ]
+  },
+
+  "dough_inclusions": [],
+
+  "session_ui": {
+    "sections": [
+      {
+        "id": "batch_sizing",
+        "title": "Batch Sizing",
+        "subtitle": "Defines total dough needed for the session.",
+        "fields": [
+          { "field_id": "pizza_count", "default": 6, "min": 1, "max": 200 },
+          { "field_id": "dough_ball_weight_g", "default": 260, "min": 80, "max": 800 }
+        ]
+      },
+      {
+        "id": "formula",
+        "title": "Formula",
+        "subtitle": "Core baker’s % inputs for calculation.",
+        "fields": [
+          { "field_id": "hydration_percent", "default": 62, "min": 45, "max": 95 },
+          { "field_id": "salt_percent", "default": 2.8, "min": 0.5, "max": 5.0 },
+          { "field_id": "yeast_type", "default": "IDY" },
+          { "field_id": "yeast_percent", "default": 0.05, "min": 0.0, "max": 3.0 }
+        ]
+      },
+      {
+        "id": "temperature_inputs",
+        "title": "Temperature Inputs",
+        "subtitle": "Used for water temperature guidance and fermentation scheduling.",
+        "fields": [
+          { "field_id": "ambient_temp_c", "default": 21, "min": -5, "max": 60 },
+          { "field_id": "fridge_temp_c", "default": 4, "min": -5, "max": 60 },
+          { "field_id": "flour_temp_c", "default": 21, "min": -5, "max": 60 },
+          { "field_id": "target_fdt_c", "default": 24, "min": 18, "max": 30 },
+          { "field_id": "mixer_profile_id", "default": "hand_knead" }
+        ]
+      },
+      {
+        "id": "process",
+        "title": "Process & Fermentation",
+        "subtitle": "These values drive the timeline schedule.",
+        "fields": [
+          { "field_id": "process_mode", "default": "cold_ferment" },
+          { "field_id": "bulk_ferment_hours", "default": 2, "min": 0, "max": 240 },
+          {
+            "field_id": "cold_ferment_hours",
+            "default": 24,
+            "min": 0,
+            "max": 240,
+            "visible_when": { "field": "process_mode", "in": ["cold_ferment"] }
+          },
+          { "field_id": "ball_ferment_hours", "default": 4, "min": 0, "max": 240 }
+        ]
+      }
+    ]
+  },
+
+  "formula": {
+    "allowed_yeast_types": ["IDY", "ADY", "Fresh", "SourdoughStarter"],
+    "inputs": [
+      "pizza_count",
+      "dough_ball_weight_g",
+      "hydration_percent",
+      "salt_percent",
+      "yeast_type",
+      "yeast_percent",
+      "ambient_temp_c",
+      "fridge_temp_c",
+      "flour_temp_c",
+      "target_fdt_c",
+      "mixer_profile_id",
+      "process_mode",
+      "bulk_ferment_hours",
+      "cold_ferment_hours",
+      "ball_ferment_hours"
+    ],
+    "ingredient_mapping": {
+      "hydration_percent": "water",
+      "salt_percent": "salt",
+      "yeast_percent": "yeast"
+    }
+  },
+
+  "timeline": {
+    "sections": [
+      {
+        "id": "prep",
+        "title": "Prep & Temperature Setup",
+        "steps": [
+          {
+            "id": "temp_setup",
+            "title": "Set temperatures and mixer selection",
+            "instructions_md": [
+              "Record ambient temperature: **{{session.ambient_temp_c}} °C**",
+              "Record flour temperature: **{{session.flour_temp_c}} °C**",
+              "Select mixer profile: **{{session.mixer_profile_id}}**",
+              "Target final dough temperature: **{{session.target_fdt_c}} °C**",
+              "Calculate target water temperature using FDT model."
+            ],
+            "schedule": { "anchor": "mix_start", "offset_minutes": -30 }
+          }
+        ]
+      },
+      {
+        "id": "mix",
+        "title": "Mix & Develop",
+        "steps": [
+          {
+            "id": "initial_mix",
+            "title": "Initial mix",
+            "instructions_md": [
+              "Scale ingredients from calculator outputs.",
+              "Dissolve salt in water, add yeast, then incorporate flour until shaggy.",
+              "Rest **15 minutes** (covered) for gluten relaxation."
+            ],
+            "schedule": { "anchor": "mix_start", "offset_minutes": 0 }
+          },
+          {
+            "id": "knead",
+            "title": "Knead to medium development",
+            "instructions_md": [
+              "Knead to a smooth dough (target development: **medium**).",
+              "Expected mixing heat gain depends on mixer profile.",
+              "Measure dough temperature immediately after mixing; compare to target FDT."
+            ],
+            "schedule": { "anchor": "mix_start", "offset_minutes": 20 }
+          }
+        ]
+      },
+      {
+        "id": "bulk",
+        "title": "Bulk Fermentation",
+        "steps": [
+          {
+            "id": "bulk_rest",
+            "title": "Bulk rest",
+            "instructions_md": [
+              "Bulk ferment for **{{session.bulk_ferment_hours}} hours** at **{{session.ambient_temp_c}} °C**.",
+              "If the dough is running warm (above target), shorten warm bulk and proceed earlier to cold fermentation."
+            ],
+            "schedule": { "anchor": "bulk_start", "offset_minutes": 0 }
+          }
+        ]
+      },
+      {
+        "id": "cold",
+        "title": "Cold Fermentation",
+        "when": { "field": "process_mode", "in": ["cold_ferment"] },
+        "steps": [
+          {
+            "id": "cold_hold",
+            "title": "Refrigerate",
+            "instructions_md": [
+              "Cold ferment for **{{session.cold_ferment_hours}} hours** at **{{session.fridge_temp_c}} °C**."
+            ],
+            "schedule": { "anchor": "cold_start", "offset_minutes": 0 }
+          }
+        ]
+      },
+      {
+        "id": "ball",
+        "title": "Balling & Proof",
+        "steps": [
+          {
+            "id": "divide_ball",
+            "title": "Divide and ball",
+            "instructions_md": [
+              "Divide into **{{session.pizza_count}}** dough balls at **{{session.dough_ball_weight_g}} g** each.",
+              "Ball tightly and cover to prevent drying."
+            ],
+            "schedule": { "anchor": "ball_time", "offset_minutes": 0 }
+          },
+          {
+            "id": "final_proof",
+            "title": "Final proof",
+            "instructions_md": [
+              "Proof for **{{session.ball_ferment_hours}} hours** at room temperature before baking."
+            ],
+            "schedule": { "anchor": "ball_time", "offset_minutes": 10 }
+          }
+        ]
+      },
+      {
+        "id": "bake",
+        "title": "Bake",
+        "steps": [
+          {
+            "id": "bake_step",
+            "title": "Bake according to oven program",
+            "instructions_md": [
+              "Preheat and bake using your selected oven program.",
+              "Use oven program guidance for deck/top targets, bake time, and rotation strategy."
+            ],
+            "schedule": { "anchor": "bake_time", "offset_minutes": 0 }
+          }
+        ]
+      }
+    ]
+  },
+
+  "oven_recommendations": [
+    {
+      "oven_id": "breville_pizzaiolo_bpz820",
+      "program_ids": ["wood_fired", "new_york"],
+      "notes_md": ["Use Wood Fired / Neapolitan for true short bakes; New York for longer bakes and heavier toppings."]
+    },
+    {
+      "oven_id": "wfo_volta_120",
+      "program_ids": ["neapolitan_hot"],
+      "notes_md": ["Target a hot deck and active flame for 60–120 second bakes."]
+    },
+    {
+      "oven_id": "home_oven_450f",
+      "program_ids": ["steel_high_heat"],
+      "notes_md": ["Use a steel if possible; consider a short broiler finish for top color."]
+    }
+  ]
+}

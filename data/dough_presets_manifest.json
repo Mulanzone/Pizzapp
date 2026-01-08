@@ -1,0 +1,7 @@
+﻿{
+  "presets": [
+    "iacopelli_balanced.json",
+    "capuano_structure.json",
+    "bonci_teglia.json"
+  ]
+}

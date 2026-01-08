@@ -1,0 +1,188 @@
+﻿{
+  "schema_version": "1.0.0",
+  "ovens": [
+    {
+      "id": "breville_pizzaiolo_bpz820",
+      "display_name": "Breville Smart Oven Pizzaiolo (BPZ820)",
+      "fuel_type": "electric",
+      "constraints": {
+        "supports_round_only": true,
+        "supports_pan": true,
+        "max_pizza_diameter_in": 11
+      },
+      "capabilities": {
+        "has_separate_deck_and_top_control": true,
+        "has_broiler": false,
+        "allow_manual_override": true
+      },
+      "programs": [
+        {
+          "id": "wood_fired",
+          "display_name": "Wood Fired / Neapolitan",
+          "launch_method": "on_deck",
+          "temp_targets_f": {
+            "deck": [700, 750],
+            "top": [700, 750]
+          },
+          "bake_time_seconds": [120, 120],
+          "rotation_strategy": "none_or_as_needed",
+          "notes_md": [
+            "Highest-heat preset intended to emulate a wood-fired environment.",
+            "Optimized for Neapolitan-style doughs with short bake times."
+          ]
+        },
+        {
+          "id": "thin_crispy",
+          "display_name": "Thin & Crispy",
+          "launch_method": "on_deck",
+          "temp_targets_f": {
+            "deck": [575, 625],
+            "top": [475, 525]
+          },
+          "bake_time_seconds": [360, 360],
+          "rotation_strategy": "optional_once",
+          "notes_md": [
+            "Lower top heat to promote dehydration and crispness.",
+            "Suitable for thinner, lower-hydration doughs."
+          ]
+        },
+        {
+          "id": "new_york",
+          "display_name": "New York",
+          "launch_method": "on_deck",
+          "temp_targets_f": {
+            "deck": [475, 525],
+            "top": [425, 475]
+          },
+          "bake_time_seconds": [420, 480],
+          "rotation_strategy": "optional_once",
+          "notes_md": [
+            "Moderate deck and top heat for balanced bake.",
+            "Typical bake time 7–8 minutes depending on hydration and toppings."
+          ]
+        },
+        {
+          "id": "pan",
+          "display_name": "Pan",
+          "launch_method": "pan_required",
+          "temp_targets_f": {
+            "deck": [600, 650],
+            "top": [375, 425]
+          },
+          "bake_time_seconds": [1080, 1080],
+          "rotation_strategy": "none",
+          "notes_md": [
+            "Designed for thicker pan-style pizzas.",
+            "Lower top heat prevents premature browning before interior sets."
+          ]
+        },
+        {
+          "id": "frozen",
+          "display_name": "Frozen",
+          "launch_method": "on_deck_or_pan",
+          "temp_targets_f": {
+            "deck": [425, 475],
+            "top": [350, 400]
+          },
+          "bake_time_seconds": [720, 1200],
+          "rotation_strategy": "optional",
+          "notes_md": [
+            "Preset optimized for frozen pizzas.",
+            "Bake time varies significantly by thickness and topping load."
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "wfo_volta_120",
+      "display_name": "Wood-Fired Oven – Volta 120",
+      "fuel_type": "wood",
+      "constraints": {
+        "supports_round_only": false,
+        "supports_pan": true,
+        "max_pizza_diameter_in": 16
+      },
+      "capabilities": {
+        "has_separate_deck_and_top_control": false,
+        "has_broiler": false,
+        "allow_manual_override": true
+      },
+      "preheat": {
+        "preheat_target_minutes": null,
+        "readiness_rule": "Deck temperature sustained above 750°F for at least 20 minutes",
+        "notes_md": [
+          "Initial firings should be logged to establish true warm-up time.",
+          "Thermal mass, insulation, wood type, and chimney draw all affect readiness."
+        ]
+      },
+      "programs": [
+        {
+          "id": "neapolitan_hot",
+          "display_name": "Neapolitan (High Heat)",
+          "launch_method": "on_deck",
+          "temp_targets_f": {
+            "deck": [750, 850],
+            "top": [850, 1000]
+          },
+          "bake_time_seconds": [60, 120],
+          "rotation_strategy": "frequent",
+          "fire_management": {
+            "live_flame": true,
+            "coal_bed": "maintain",
+            "flame_side": "left"
+          },
+          "notes_md": [
+            "Active flame required for top heat and rapid oven spring.",
+            "Rotate frequently to avoid localized scorching."
+          ]
+        }
+      ],
+      "calibration": {
+        "last_updated": null,
+        "notes": ""
+      }
+    },
+
+    {
+      "id": "home_oven_450f",
+      "display_name": "Home Oven (Max 450°F)",
+      "fuel_type": "electric_or_gas",
+      "constraints": {
+        "supports_round_only": false,
+        "supports_pan": true,
+        "max_pizza_diameter_in": 16
+      },
+      "capabilities": {
+        "has_separate_deck_and_top_control": false,
+        "has_broiler": true,
+        "allow_manual_override": true
+      },
+      "preheat": {
+        "preheat_target_minutes": 60,
+        "readiness_rule": "Stone or steel preheated for at least 60 minutes at maximum oven temperature",
+        "notes_md": [
+          "Extended preheat is critical to saturate thermal mass.",
+          "Steel provides better bottom heat than stone at this temperature ceiling."
+        ]
+      },
+      "programs": [
+        {
+          "id": "steel_high_heat",
+          "display_name": "Stone / Steel Bake",
+          "launch_method": "on_steel_or_stone",
+          "temp_targets_f": {
+            "air": [450, 450],
+            "deck": [500, 600]
+          },
+          "bake_time_seconds": [420, 720],
+          "rotation_strategy": "once_halfway",
+          "notes_md": [
+            "Use broiler briefly at end if top browning lags.",
+            "Expect longer bake times compared to dedicated pizza ovens."
+          ]
+        }
+      ]
+    }
+  ]
+}

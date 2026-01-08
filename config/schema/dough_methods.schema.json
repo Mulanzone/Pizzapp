@@ -1,0 +1,174 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://littletabletsrxco.local/schema/dough_methods.schema.json",
+  "title": "Dough Methods Registry Schema",
+  "type": "object",
+  "required": ["schema_version", "methods"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "methods": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/method" }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 80,
+      "pattern": "^[a-z0-9]+(?:[a-z0-9_\\-]*[a-z0-9]+)?$"
+    },
+    "markdownArray": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+
+    "phase": {
+      "type": "string",
+      "enum": [
+        "starter_prep",
+        "preferment_build",
+        "final_mix",
+        "mix",
+        "bulk",
+        "cold",
+        "ball",
+        "pan_proof",
+        "dimple",
+        "bake"
+      ]
+    },
+
+    "timeAnchor": {
+      "type": "string",
+      "enum": [
+        "starter_feed_time",
+        "preferment_start",
+        "final_mix_start",
+        "mix_start",
+        "bulk_start",
+        "cold_start",
+        "ball_time",
+        "pan_proof_start",
+        "preheat_start",
+        "bake_time",
+        "serve_time"
+      ]
+    },
+
+    "category": {
+      "type": "string",
+      "enum": ["direct", "preferment", "sourdough", "pan", "focaccia"]
+    },
+
+    "supports": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preferment", "sourdough", "pan"],
+      "properties": {
+        "preferment": { "type": "boolean" },
+        "sourdough": { "type": "boolean" },
+        "pan": { "type": "boolean" }
+      }
+    },
+
+    "prefermentSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "default_hydration_percent", "default_flour_percent_of_total"],
+      "properties": {
+        "type": { "type": "string", "enum": ["biga", "poolish", "pate_fermentee", "other"] },
+        "default_hydration_percent": { "type": "number", "minimum": 30, "maximum": 200 },
+        "default_flour_percent_of_total": { "type": "number", "minimum": 5, "maximum": 100 }
+      }
+    },
+
+    "starterSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_hydration_percent", "default_inoculation_percent_of_flour"],
+      "properties": {
+        "default_hydration_percent": { "type": "number", "minimum": 30, "maximum": 200 },
+        "default_inoculation_percent_of_flour": { "type": "number", "minimum": 1, "maximum": 100 }
+      }
+    },
+
+    "method": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "display_name",
+        "category",
+        "supports",
+        "phases",
+        "time_anchors",
+        "required_fields",
+        "optional_fields",
+        "notes_md"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "display_name": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "category": { "$ref": "#/$defs/category" },
+
+        "supports": { "$ref": "#/$defs/supports" },
+
+        "preferment": { "$ref": "#/$defs/prefermentSpec" },
+        "starter": { "$ref": "#/$defs/starterSpec" },
+
+        "phases": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/phase" }
+        },
+
+        "time_anchors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/timeAnchor" }
+        },
+
+        "required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/id" }
+        },
+
+        "optional_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "default": []
+        },
+
+        "notes_md": { "$ref": "#/$defs/markdownArray" }
+      },
+
+      "allOf": [
+        {
+          "if": { "properties": { "supports": { "properties": { "preferment": { "const": true } } } } },
+          "then": { "required": ["preferment"] }
+        },
+        {
+          "if": { "properties": { "supports": { "properties": { "preferment": { "const": false } } } } },
+          "then": { "not": { "required": ["preferment"] } }
+        },
+
+        {
+          "if": { "properties": { "supports": { "properties": { "sourdough": { "const": true } } } } },
+          "then": { "required": ["starter"] }
+        },
+        {
+          "if": { "properties": { "supports": { "properties": { "sourdough": { "const": false } } } } },
+          "then": { "not": { "required": ["starter"] } }
+        }
+      ]
+    }
+  }
+}
