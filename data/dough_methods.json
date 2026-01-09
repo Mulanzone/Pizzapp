@@ -160,7 +160,7 @@
 
   "methods": [
     {
-      "id": "direct",
+      "method_id": "direct",
       "display_name": "Direct Dough",
       "ferment_type": "direct",
       "supports": {
@@ -226,7 +226,7 @@
     },
 
     {
-      "id": "poolish",
+      "method_id": "poolish",
       "display_name": "Poolish Method",
       "ferment_type": "preferment",
       "supports": {
@@ -309,7 +309,7 @@
     },
 
     {
-      "id": "biga",
+      "method_id": "biga",
       "display_name": "Biga Method",
       "ferment_type": "preferment",
       "supports": {
@@ -388,7 +388,7 @@
     },
 
     {
-      "id": "tiga",
+      "method_id": "tiga",
       "display_name": "Tiga Method",
       "ferment_type": "preferment",
       "supports": {
@@ -467,7 +467,7 @@
     },
 
     {
-      "id": "hybrid_poolish_biga",
+      "method_id": "hybrid_poolish_biga",
       "display_name": "Hybrid Preferment (Poolish + Biga)",
       "ferment_type": "hybrid",
       "supports": {
@@ -565,7 +565,7 @@
     },
 
     {
-      "id": "sourdough",
+      "method_id": "sourdough",
       "display_name": "Sourdough Method",
       "ferment_type": "starter",
       "supports": {
