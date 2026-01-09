@@ -1,272 +1,647 @@
-﻿{
-  "schema_version": "1.0.0",
+// dough_methods.json
+{
+  "schema_version": "2.0.0",
+  "purpose": "Baseline bible for dough fermentation methods. Canonical field names, defaults, ranges, flags, calculation semantics, and instruction scaffolding for the Pizzaiolo tab.",
+  "canonical_conventions": {
+    "naming": "snake_case_only",
+    "percent_base": "total_flour",
+    "hydration_definition": "water_percent_of_total_flour",
+    "all_pcts_are_flour_based_unless_noted": true,
+    "preferment_and_starter_subtraction_required": true
+  },
+
+  "enums": {
+    "pizza_style_id": [
+      "neapolitan_round",
+      "calzone",
+      "panzerotti",
+      "focaccia",
+      "teglia_bonci",
+      "pizza_rossa",
+      "dessert_pizza"
+    ],
+    "oven_type": [
+      "wood_fired",
+      "gas_pizza_oven",
+      "home_electric",
+      "home_gas",
+      "steel_or_stone",
+      "deck_oven"
+    ],
+    "fermentation_location": ["room", "cold", "mixed"],
+    "yeast_type": ["idy", "ady", "fresh", "starter_only", "starter_plus_yeast"],
+    "mix_method": ["hand", "spiral", "planetary", "stand_mixer", "no_knead"],
+    "flour_blend_id": ["00_only", "00_plus_bread", "bonci_blend", "custom"]
+  },
+
+  "session_schema": {
+    "version": "2.0.0",
+    "required_core_fields": [
+      "pizza_style_id",
+      "method_id",
+      "oven_type",
+      "flour_blend_id",
+      "target_pizza_count",
+      "dough_unit_weight_g",
+      "hydration_percent",
+      "salt_percent",
+      "fermentation_location",
+      "ambient_temp_c",
+      "fridge_temp_c",
+      "mix_method"
+    ],
+    "required_time_model_fields": [
+      "bulk_ferment_hours",
+      "cold_ferment_hours",
+      "ball_or_pan_ferment_hours"
+    ],
+    "optional_fields": [
+      "target_fdt_c",
+      "flour_temp_c",
+      "water_temp_c",
+      "ddt_model_enabled",
+      "diastatic_malt_percent",
+      "honey_percent",
+      "oil_percent",
+      "sugar_percent",
+      "yeast_type",
+      "yeast_percent",
+      "preferment_enabled",
+      "preferment_type",
+      "preferment_flour_percent_of_total",
+      "preferment_hydration_percent",
+      "preferment_mature_hours",
+      "hybrid_poolish_share_percent",
+      "hybrid_biga_share_percent",
+      "starter_enabled",
+      "starter_hydration_percent",
+      "starter_inoculation_percent",
+      "starter_peak_window_hours",
+      "pan_or_tray_area_cm2",
+      "dough_grams_per_cm2",
+      "batching_max_dough_mass_g",
+      "warnings_enabled",
+      "notes_md"
+    ],
+    "derived_fields": [
+      "target_total_dough_g",
+      "total_flour_g",
+      "total_water_g",
+      "total_salt_g",
+      "total_oil_g",
+      "total_honey_g",
+      "total_malt_g",
+      "total_sugar_g",
+      "total_yeast_g",
+      "preferment_flour_g",
+      "preferment_water_g",
+      "preferment_yeast_g",
+      "starter_total_g",
+      "starter_flour_g",
+      "starter_water_g",
+      "final_mix_flour_g",
+      "final_mix_water_g",
+      "final_mix_salt_g",
+      "final_mix_oil_g",
+      "final_mix_honey_g",
+      "final_mix_malt_g",
+      "final_mix_sugar_g",
+      "final_mix_yeast_g",
+      "batches"
+    ]
+  },
+
+  "global_defaults": {
+    "batching": {
+      "enabled": true,
+      "max_dough_mass_per_batch_g": 3500
+    },
+    "temperature_model": {
+      "ddt_model_enabled": true,
+      "target_fdt_c_default": 23,
+      "poolish_water_temp_c_default": 20,
+      "biga_water_temp_c_default": 15,
+      "final_dough_water_temp_c_default": 10
+    },
+    "ingredient_safety_rules": {
+      "diastatic_malt": {
+        "default_allowed": true,
+        "max_percent": 0.5,
+        "disallow_when": [{ "oven_type": "wood_fired" }]
+      },
+      "honey": {
+        "default_allowed": true,
+        "max_percent_by_oven_type": {
+          "wood_fired": 1.0,
+          "gas_pizza_oven": 1.0,
+          "deck_oven": 1.0,
+          "steel_or_stone": 2.0,
+          "home_electric": 2.0,
+          "home_gas": 2.0
+        }
+      },
+      "sugar": {
+        "default_allowed": true,
+        "max_percent_by_oven_type": {
+          "wood_fired": 0.5,
+          "gas_pizza_oven": 0.5,
+          "deck_oven": 0.5,
+          "steel_or_stone": 1.0,
+          "home_electric": 2.0,
+          "home_gas": 2.0
+        }
+      },
+      "oil": {
+        "default_allowed": true,
+        "max_percent": 6.0
+      }
+    }
+  },
+
   "methods": [
     {
       "id": "direct",
       "display_name": "Direct Dough",
-      "category": "direct",
+      "ferment_type": "direct",
       "supports": {
         "preferment": false,
-        "sourdough": false,
-        "pan": false
+        "starter": false,
+        "hybrid": false
       },
-      "phases": ["mix", "bulk", "ball", "bake"],
-      "time_anchors": ["mix_start", "bulk_start", "ball_time", "preheat_start", "bake_time", "serve_time"],
-      "required_fields": [
-        "pizza_count",
-        "dough_ball_weight_g",
-        "hydration_percent",
-        "salt_percent",
-        "yeast_type",
-        "yeast_percent",
-        "ambient_temp_c",
-        "fridge_temp_c",
-        "bulk_ferment_hours",
-        "cold_ferment_hours",
-        "ball_ferment_hours"
-      ],
-      "optional_fields": [
-        "flour_temp_c",
-        "target_fdt_c",
-        "mixer_profile_id",
-        "process_mode",
-        "honey_percent",
-        "oil_percent",
-        "sugar_percent",
-        "diastatic_malt_percent"
-      ],
-      "notes_md": [
-        "All flour and water are mixed in the final dough (no preferment).",
-        "Presets can still choose same-day or cold-ferment schedules."
-      ]
-    },
 
-    {
-      "id": "biga",
-      "display_name": "Biga Method",
-      "category": "preferment",
-      "supports": {
-        "preferment": true,
-        "sourdough": false,
-        "pan": false
+      "defaults": {
+        "hydration_percent": 62.5,
+        "salt_percent": 2.7,
+        "oil_percent": 0.0,
+        "honey_percent": 0.0,
+        "sugar_percent": 0.0,
+        "diastatic_malt_percent": 0.0,
+
+        "yeast_type": "idy",
+        "yeast_percent": 0.05,
+
+        "fermentation_location": "cold",
+        "bulk_ferment_hours": 4,
+        "cold_ferment_hours": 20,
+        "ball_or_pan_ferment_hours": 0,
+
+        "ddt_model_enabled": true,
+        "target_fdt_c": 23,
+        "mix_method": "hand"
       },
-      "preferment": {
-        "type": "biga",
-        "default_hydration_percent": 45,
-        "default_flour_percent_of_total": 50
+
+      "ranges": {
+        "hydration_percent": [55, 80],
+        "salt_percent": [2.2, 3.2],
+        "yeast_percent": [0.01, 0.3],
+        "oil_percent": [0, 6],
+        "honey_percent": [0, 2],
+        "diastatic_malt_percent": [0, 0.5]
       },
-      "phases": ["preferment_build", "final_mix", "bulk", "ball", "bake"],
-      "time_anchors": ["preferment_start", "final_mix_start", "bulk_start", "ball_time", "preheat_start", "bake_time", "serve_time"],
-      "required_fields": [
-        "pizza_count",
-        "dough_ball_weight_g",
-        "hydration_percent",
-        "salt_percent",
-        "yeast_type",
-        "yeast_percent",
-        "ambient_temp_c",
-        "fridge_temp_c",
-        "bulk_ferment_hours",
-        "cold_ferment_hours",
-        "ball_ferment_hours",
-        "preferment_flour_percent_of_total",
-        "preferment_hydration_percent",
-        "preferment_mature_hours"
-      ],
-      "optional_fields": [
-        "flour_temp_c",
-        "target_fdt_c",
-        "mixer_profile_id",
-        "process_mode",
-        "honey_percent",
-        "oil_percent",
-        "sugar_percent",
-        "diastatic_malt_percent"
-      ],
-      "notes_md": [
-        "Biga is a stiff preferment. Presets set biga % and maturity targets.",
-        "Final dough combines biga with remaining water/salt/yeast and the rest of the flour."
-      ]
+
+      "flags": {
+        "oil_allowed": true,
+        "honey_allowed": true,
+        "sugar_allowed": true,
+        "diastatic_malt_allowed": true,
+        "yeast_required": true
+      },
+
+      "calculation_model": {
+        "percent_base": "total_flour",
+        "preferment": null,
+        "starter": null,
+        "final_mix": { "subtract_preferment": false, "subtract_starter": false }
+      },
+
+      "phases": ["mix", "bulk", "ball_or_pan", "bake"],
+      "time_anchors": ["mix_start", "bulk_start", "ball_or_pan_time", "preheat_start", "bake_time", "serve_time"],
+
+      "instruction_map": {
+        "mix": { "show_total_ingredients": true, "show_preferment_ingredients": false },
+        "bulk": { "default_temp_logic": "ambient_vs_cold_per_schedule" },
+        "ball_or_pan": { "default_action": "ball_and_rest_or_pan_and_proof" },
+        "bake": { "default_action": "bake_per_style_and_oven" }
+      }
     },
 
     {
       "id": "poolish",
       "display_name": "Poolish Method",
-      "category": "preferment",
+      "ferment_type": "preferment",
       "supports": {
         "preferment": true,
-        "sourdough": false,
-        "pan": false
+        "starter": false,
+        "hybrid": false
       },
-      "preferment": {
-        "type": "poolish",
-        "default_hydration_percent": 100,
-        "default_flour_percent_of_total": 30
+
+      "defaults": {
+        "hydration_percent": 65.0,
+        "salt_percent": 2.8,
+        "oil_percent": 0.0,
+        "honey_percent": 0.0,
+        "sugar_percent": 0.0,
+        "diastatic_malt_percent": 0.0,
+
+        "yeast_type": "idy",
+        "yeast_percent": 0.05,
+
+        "preferment_enabled": true,
+        "preferment_type": "poolish",
+        "preferment_flour_percent_of_total": 30,
+        "preferment_hydration_percent": 100,
+        "preferment_mature_hours": 12,
+
+        "fermentation_location": "mixed",
+        "bulk_ferment_hours": 2,
+        "cold_ferment_hours": 20,
+        "ball_or_pan_ferment_hours": 0,
+
+        "ddt_model_enabled": true,
+        "target_fdt_c": 23,
+        "mix_method": "hand"
       },
-      "phases": ["preferment_build", "final_mix", "bulk", "ball", "bake"],
-      "time_anchors": ["preferment_start", "final_mix_start", "bulk_start", "ball_time", "preheat_start", "bake_time", "serve_time"],
-      "required_fields": [
-        "pizza_count",
-        "dough_ball_weight_g",
-        "hydration_percent",
-        "salt_percent",
-        "yeast_type",
-        "yeast_percent",
-        "ambient_temp_c",
-        "fridge_temp_c",
-        "bulk_ferment_hours",
-        "cold_ferment_hours",
-        "ball_ferment_hours",
-        "preferment_flour_percent_of_total",
-        "preferment_hydration_percent",
-        "preferment_mature_hours"
-      ],
-      "optional_fields": [
-        "flour_temp_c",
-        "target_fdt_c",
-        "mixer_profile_id",
-        "process_mode",
-        "honey_percent",
-        "oil_percent",
-        "sugar_percent",
-        "diastatic_malt_percent"
-      ],
-      "notes_md": [
-        "Poolish is a liquid preferment. Presets define poolish % and maturity targets.",
-        "Final dough combines poolish with remaining flour/salt and any remaining water."
-      ]
+
+      "ranges": {
+        "hydration_percent": [60, 78],
+        "salt_percent": [2.3, 3.2],
+        "yeast_percent": [0.01, 0.25],
+        "preferment_flour_percent_of_total": [10, 100],
+        "preferment_hydration_percent": [90, 120],
+        "preferment_mature_hours": [6, 24]
+      },
+
+      "flags": {
+        "oil_allowed": true,
+        "honey_allowed": true,
+        "sugar_allowed": true,
+        "diastatic_malt_allowed": true,
+        "yeast_required": true
+      },
+
+      "calculation_model": {
+        "percent_base": "total_flour",
+        "preferment": {
+          "type": "poolish",
+          "flour_pct_field": "preferment_flour_percent_of_total",
+          "hydration_field": "preferment_hydration_percent",
+          "yeast_distribution": "preferment_only_by_default",
+          "subtract_from_final_mix": true
+        },
+        "starter": null,
+        "final_mix": { "subtract_preferment": true, "subtract_starter": false }
+      },
+
+      "phases": ["preferment_build", "final_mix", "bulk", "ball_or_pan", "bake"],
+      "time_anchors": ["preferment_start", "final_mix_start", "bulk_start", "ball_or_pan_time", "preheat_start", "bake_time", "serve_time"],
+
+      "instruction_map": {
+        "preferment_build": {
+          "show_preferment_ingredients": true,
+          "preferment_notes": "Poolish is liquid; mix until smooth; cover; mature until domed and fragrant."
+        },
+        "final_mix": {
+          "show_total_ingredients": false,
+          "show_remainder_ingredients": true,
+          "must_show": ["preferment_total_g", "final_mix_flour_g", "final_mix_water_g"]
+        }
+      }
+    },
+
+    {
+      "id": "biga",
+      "display_name": "Biga Method",
+      "ferment_type": "preferment",
+      "supports": {
+        "preferment": true,
+        "starter": false,
+        "hybrid": false
+      },
+
+      "defaults": {
+        "hydration_percent": 62.0,
+        "salt_percent": 2.9,
+        "oil_percent": 0.0,
+        "honey_percent": 0.0,
+        "sugar_percent": 0.0,
+        "diastatic_malt_percent": 0.0,
+
+        "yeast_type": "idy",
+        "yeast_percent": 0.05,
+
+        "preferment_enabled": true,
+        "preferment_type": "biga",
+        "preferment_flour_percent_of_total": 50,
+        "preferment_hydration_percent": 45,
+        "preferment_mature_hours": 16,
+
+        "fermentation_location": "mixed",
+        "bulk_ferment_hours": 2,
+        "cold_ferment_hours": 20,
+        "ball_or_pan_ferment_hours": 0,
+
+        "ddt_model_enabled": true,
+        "target_fdt_c": 23,
+        "mix_method": "hand"
+      },
+
+      "ranges": {
+        "hydration_percent": [55, 75],
+        "salt_percent": [2.3, 3.2],
+        "yeast_percent": [0.01, 0.2],
+        "preferment_flour_percent_of_total": [10, 100],
+        "preferment_hydration_percent": [40, 60],
+        "preferment_mature_hours": [8, 24]
+      },
+
+      "flags": {
+        "oil_allowed": true,
+        "honey_allowed": true,
+        "sugar_allowed": true,
+        "diastatic_malt_allowed": true,
+        "yeast_required": true
+      },
+
+      "calculation_model": {
+        "percent_base": "total_flour",
+        "preferment": {
+          "type": "biga",
+          "flour_pct_field": "preferment_flour_percent_of_total",
+          "hydration_field": "preferment_hydration_percent",
+          "yeast_distribution": "preferment_only_by_default",
+          "subtract_from_final_mix": true
+        },
+        "starter": null,
+        "final_mix": { "subtract_preferment": true, "subtract_starter": false }
+      },
+
+      "phases": ["preferment_build", "final_mix", "bulk", "ball_or_pan", "bake"],
+      "time_anchors": ["preferment_start", "final_mix_start", "bulk_start", "ball_or_pan_time", "preheat_start", "bake_time", "serve_time"],
+
+      "instruction_map": {
+        "preferment_build": {
+          "show_preferment_ingredients": true,
+          "preferment_notes": "Biga is stiff; mix to shaggy clumps; keep cool; mature until aromatic and slightly risen."
+        },
+        "final_mix": { "show_remainder_ingredients": true }
+      }
+    },
+
+    {
+      "id": "tiga",
+      "display_name": "Tiga Method",
+      "ferment_type": "preferment",
+      "supports": {
+        "preferment": true,
+        "starter": false,
+        "hybrid": false
+      },
+
+      "defaults": {
+        "hydration_percent": 65.0,
+        "salt_percent": 2.8,
+        "oil_percent": 0.0,
+        "honey_percent": 0.0,
+        "sugar_percent": 0.0,
+        "diastatic_malt_percent": 0.0,
+
+        "yeast_type": "idy",
+        "yeast_percent": 0.05,
+
+        "preferment_enabled": true,
+        "preferment_type": "tiga",
+        "preferment_flour_percent_of_total": 50,
+        "preferment_hydration_percent": 70,
+        "preferment_mature_hours": 12,
+
+        "fermentation_location": "mixed",
+        "bulk_ferment_hours": 2,
+        "cold_ferment_hours": 18,
+        "ball_or_pan_ferment_hours": 4,
+
+        "ddt_model_enabled": true,
+        "target_fdt_c": 23,
+        "mix_method": "hand"
+      },
+
+      "ranges": {
+        "hydration_percent": [60, 80],
+        "salt_percent": [2.3, 3.2],
+        "yeast_percent": [0.01, 0.25],
+        "preferment_flour_percent_of_total": [10, 100],
+        "preferment_hydration_percent": [60, 90],
+        "preferment_mature_hours": [6, 24]
+      },
+
+      "flags": {
+        "oil_allowed": true,
+        "honey_allowed": true,
+        "sugar_allowed": true,
+        "diastatic_malt_allowed": true,
+        "yeast_required": true
+      },
+
+      "calculation_model": {
+        "percent_base": "total_flour",
+        "preferment": {
+          "type": "tiga",
+          "flour_pct_field": "preferment_flour_percent_of_total",
+          "hydration_field": "preferment_hydration_percent",
+          "yeast_distribution": "preferment_only_by_default",
+          "subtract_from_final_mix": true
+        },
+        "starter": null,
+        "final_mix": { "subtract_preferment": true, "subtract_starter": false }
+      },
+
+      "phases": ["preferment_build", "final_mix", "bulk", "ball_or_pan", "bake"],
+      "time_anchors": ["preferment_start", "final_mix_start", "bulk_start", "ball_or_pan_time", "preheat_start", "bake_time", "serve_time"],
+
+      "instruction_map": {
+        "preferment_build": {
+          "show_preferment_ingredients": true,
+          "preferment_notes": "Tiga is medium-hydration preferment; mix to cohesive dough; mature until aerated and elastic."
+        },
+        "final_mix": { "show_remainder_ingredients": true }
+      }
+    },
+
+    {
+      "id": "hybrid_poolish_biga",
+      "display_name": "Hybrid Preferment (Poolish + Biga)",
+      "ferment_type": "hybrid",
+      "supports": {
+        "preferment": true,
+        "starter": false,
+        "hybrid": true
+      },
+
+      "defaults": {
+        "hydration_percent": 68.0,
+        "salt_percent": 2.8,
+        "oil_percent": 0.0,
+        "honey_percent": 0.0,
+        "sugar_percent": 0.0,
+        "diastatic_malt_percent": 0.0,
+
+        "yeast_type": "idy",
+        "yeast_percent": 0.05,
+
+        "preferment_enabled": true,
+        "preferment_type": "hybrid_poolish_biga",
+        "preferment_flour_percent_of_total": 60,
+
+        "hybrid_poolish_share_percent": 60,
+        "hybrid_biga_share_percent": 40,
+
+        "poolish_hydration_percent": 100,
+        "biga_hydration_percent": 45,
+
+        "preferment_mature_hours": 14,
+
+        "fermentation_location": "mixed",
+        "bulk_ferment_hours": 2,
+        "cold_ferment_hours": 18,
+        "ball_or_pan_ferment_hours": 4,
+
+        "ddt_model_enabled": true,
+        "target_fdt_c": 23,
+        "mix_method": "hand"
+      },
+
+      "ranges": {
+        "hydration_percent": [60, 78],
+        "salt_percent": [2.3, 3.2],
+        "yeast_percent": [0.01, 0.25],
+        "preferment_flour_percent_of_total": [10, 100],
+        "hybrid_poolish_share_percent": [0, 100],
+        "hybrid_biga_share_percent": [0, 100],
+        "poolish_hydration_percent": [90, 120],
+        "biga_hydration_percent": [40, 60],
+        "preferment_mature_hours": [6, 24]
+      },
+
+      "flags": {
+        "oil_allowed": true,
+        "honey_allowed": true,
+        "sugar_allowed": true,
+        "diastatic_malt_allowed": true,
+        "yeast_required": true
+      },
+
+      "calculation_model": {
+        "percent_base": "total_flour",
+        "preferment": {
+          "type": "hybrid_poolish_biga",
+          "flour_pct_field": "preferment_flour_percent_of_total",
+          "split": {
+            "poolish_share_field": "hybrid_poolish_share_percent",
+            "biga_share_field": "hybrid_biga_share_percent"
+          },
+          "components": {
+            "poolish": {
+              "hydration_percent_field": "poolish_hydration_percent",
+              "yeast_distribution": "poolish_only_by_default"
+            },
+            "biga": {
+              "hydration_percent_field": "biga_hydration_percent",
+              "yeast_distribution": "biga_only_by_default"
+            }
+          },
+          "subtract_from_final_mix": true
+        },
+        "starter": null,
+        "final_mix": { "subtract_preferment": true, "subtract_starter": false }
+      },
+
+      "phases": ["preferment_build_poolish", "preferment_build_biga", "final_mix", "bulk", "ball_or_pan", "bake"],
+      "time_anchors": ["preferment_start", "final_mix_start", "bulk_start", "ball_or_pan_time", "preheat_start", "bake_time", "serve_time"],
+
+      "instruction_map": {
+        "preferment_build_poolish": { "show_preferment_ingredients": true },
+        "preferment_build_biga": { "show_preferment_ingredients": true },
+        "final_mix": { "show_remainder_ingredients": true, "must_show": ["poolish_total_g", "biga_total_g"] }
+      }
     },
 
     {
       "id": "sourdough",
       "display_name": "Sourdough Method",
-      "category": "sourdough",
+      "ferment_type": "starter",
       "supports": {
         "preferment": false,
-        "sourdough": true,
-        "pan": false
+        "starter": true,
+        "hybrid": false
       },
-      "starter": {
-        "default_hydration_percent": 100,
-        "default_inoculation_percent_of_flour": 20
-      },
-      "phases": ["starter_prep", "mix", "bulk", "ball", "bake"],
-      "time_anchors": ["starter_feed_time", "mix_start", "bulk_start", "ball_time", "preheat_start", "bake_time", "serve_time"],
-      "required_fields": [
-        "pizza_count",
-        "dough_ball_weight_g",
-        "hydration_percent",
-        "salt_percent",
-        "ambient_temp_c",
-        "fridge_temp_c",
-        "bulk_ferment_hours",
-        "cold_ferment_hours",
-        "ball_ferment_hours",
-        "starter_hydration_percent",
-        "starter_inoculation_percent",
-        "starter_peak_window_hours"
-      ],
-      "optional_fields": [
-        "flour_temp_c",
-        "target_fdt_c",
-        "mixer_profile_id",
-        "process_mode",
-        "honey_percent",
-        "oil_percent",
-        "sugar_percent",
-        "diastatic_malt_percent"
-      ],
-      "notes_md": [
-        "Sourdough uses starter inoculation instead of commercial yeast (or can be hybrid in presets later).",
-        "Starter readiness and dough temperature strongly influence fermentation speed."
-      ]
-    },
 
-    {
-      "id": "pan",
-      "display_name": "Pan Pizza Method",
-      "category": "pan",
-      "supports": {
-        "preferment": true,
-        "sourdough": true,
-        "pan": true
-      },
-      "phases": ["mix", "bulk", "pan_proof", "bake"],
-      "time_anchors": ["mix_start", "bulk_start", "pan_proof_start", "preheat_start", "bake_time", "serve_time"],
-      "required_fields": [
-        "tray_count",
-        "dough_per_tray_g",
-        "hydration_percent",
-        "salt_percent",
-        "ambient_temp_c",
-        "fridge_temp_c",
-        "bulk_ferment_hours",
-        "cold_ferment_hours",
-        "pan_proof_hours"
-      ],
-      "optional_fields": [
-        "yeast_type",
-        "yeast_percent",
-        "starter_hydration_percent",
-        "starter_inoculation_percent",
-        "preferment_flour_percent_of_total",
-        "preferment_hydration_percent",
-        "preferment_mature_hours",
-        "flour_temp_c",
-        "target_fdt_c",
-        "mixer_profile_id",
-        "oil_percent",
-        "sugar_percent",
-        "diastatic_malt_percent"
-      ],
-      "notes_md": [
-        "Pan method is defined by proofing in the pan/tray and bake behavior, not just formula.",
-        "Presets (e.g., Bonci) will specify oiling, dimple technique, and proof stages."
-      ]
-    },
+      "defaults": {
+        "hydration_percent": 65.0,
+        "salt_percent": 2.7,
+        "oil_percent": 0.0,
+        "honey_percent": 0.0,
+        "sugar_percent": 0.0,
+        "diastatic_malt_percent": 0.0,
 
-    {
-      "id": "focaccia",
-      "display_name": "Focaccia Method",
-      "category": "focaccia",
-      "supports": {
-        "preferment": true,
-        "sourdough": true,
-        "pan": true
+        "yeast_type": "starter_only",
+        "yeast_percent": 0.0,
+
+        "starter_enabled": true,
+        "starter_hydration_percent": 100,
+        "starter_inoculation_percent": 20,
+        "starter_peak_window_hours": 4,
+
+        "fermentation_location": "mixed",
+        "bulk_ferment_hours": 4,
+        "cold_ferment_hours": 16,
+        "ball_or_pan_ferment_hours": 4,
+
+        "ddt_model_enabled": true,
+        "target_fdt_c": 24,
+        "mix_method": "hand"
       },
-      "phases": ["mix", "bulk", "pan_proof", "dimple", "bake"],
-      "time_anchors": ["mix_start", "bulk_start", "pan_proof_start", "preheat_start", "bake_time", "serve_time"],
-      "required_fields": [
-        "tray_count",
-        "dough_per_tray_g",
-        "hydration_percent",
-        "salt_percent",
-        "ambient_temp_c",
-        "fridge_temp_c",
-        "bulk_ferment_hours",
-        "cold_ferment_hours",
-        "pan_proof_hours"
-      ],
-      "optional_fields": [
-        "yeast_type",
-        "yeast_percent",
-        "starter_hydration_percent",
-        "starter_inoculation_percent",
-        "preferment_flour_percent_of_total",
-        "preferment_hydration_percent",
-        "preferment_mature_hours",
-        "flour_temp_c",
-        "target_fdt_c",
-        "mixer_profile_id",
-        "oil_percent",
-        "sugar_percent",
-        "diastatic_malt_percent",
-        "dough_inclusions"
-      ],
-      "notes_md": [
-        "Focaccia is a pan method with high hydration, oil, dimpling, and often inclusions.",
-        "Presets specify brine, oil quantity, and topping/inclusion handling."
-      ]
+
+      "ranges": {
+        "hydration_percent": [60, 85],
+        "salt_percent": [2.2, 3.2],
+        "starter_hydration_percent": [50, 125],
+        "starter_inoculation_percent": [5, 40],
+        "starter_peak_window_hours": [2, 8],
+        "oil_percent": [0, 6],
+        "honey_percent": [0, 2],
+        "diastatic_malt_percent": [0, 0.5]
+      },
+
+      "flags": {
+        "oil_allowed": true,
+        "honey_allowed": true,
+        "sugar_allowed": true,
+        "diastatic_malt_allowed": true,
+        "yeast_required": false
+      },
+
+      "calculation_model": {
+        "percent_base": "total_flour",
+        "preferment": null,
+        "starter": {
+          "enabled_field": "starter_enabled",
+          "starter_hydration_field": "starter_hydration_percent",
+          "starter_inoculation_field": "starter_inoculation_percent",
+          "starter_percent_base": "total_flour",
+          "subtract_from_final_mix": true
+        },
+        "final_mix": { "subtract_preferment": false, "subtract_starter": true }
+      },
+
+      "phases": ["starter_prep", "mix", "bulk", "ball_or_pan", "bake"],
+      "time_anchors": ["starter_feed_time", "mix_start", "bulk_start", "ball_or_pan_time", "preheat_start", "bake_time", "serve_time"],
+
+      "instruction_map": {
+        "starter_prep": {
+          "show_starter_math": true,
+          "starter_notes": "Feed to peak; use within peak window; temperature controls fermentation speed."
+        },
+        "mix": { "show_remainder_ingredients": true, "must_show": ["starter_total_g", "final_mix_flour_g", "final_mix_water_g"] }
+      }
     }
   ]
 }
