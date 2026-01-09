@@ -405,7 +405,6 @@ const BASE_OVENS_RAW = [
     resolved_session_v2: null,
     derived_session_v2: null,
     pizzaioloBundle: null,
-    v2Overrides: {},
     session: {
       schemaVersion: "1.0",
       sessionId: cryptoSafeId("session"),
@@ -901,14 +900,9 @@ function getProgramTempTargets(prog) {
     const inputs = window.SessionResolverV2.legacyToV2Inputs({
       legacy_session: STATE.session
     });
-    const v2Overrides = STATE.v2Overrides && typeof STATE.v2Overrides === "object" ? STATE.v2Overrides : {};
 
     const result = window.SessionResolverV2.resolveSessionV2({
       ...inputs,
-      user_session_overrides_v2: {
-        ...(inputs.user_session_overrides_v2 || {}),
-        ...v2Overrides
-      },
       orders_state: STATE.orders
     });
 
@@ -925,290 +919,6 @@ function getProgramTempTargets(prog) {
       return null;
     }
     return window.SessionResolverV2.v2DerivedToLegacyDashboard(result.derived_session_v2);
-  }
-
-  function getV2Methods() {
-    if (!window.SessionResolverV2 || typeof window.SessionResolverV2.getMethods !== "function") return [];
-    return window.SessionResolverV2.getMethods() || [];
-  }
-
-  function getV2Presets() {
-    if (!window.SessionResolverV2 || typeof window.SessionResolverV2.getPresets !== "function") return [];
-    return window.SessionResolverV2.getPresets() || [];
-  }
-
-  function getManualPresetOption() {
-    return { id: "manual", label: "Custom / Manual", overrides: null, method_id: null, description: "You control every parameter." };
-  }
-
-  function getV2PresetOptions() {
-    const presets = getV2Presets();
-    if (presets.some((preset) => preset.id === "manual")) return presets;
-    return [getManualPresetOption(), ...presets];
-  }
-
-  function getV2MethodById(id) {
-    const methods = getV2Methods();
-    return methods.find((m) => m.method_id === id) || methods[0] || null;
-  }
-
-  function getV2PresetById(id) {
-    const presets = getV2PresetOptions();
-    return presets.find((p) => p.id === id) || presets[0] || null;
-  }
-
-  function mapV2FermentationLocationToLegacy(loc) {
-    const key = String(loc || "").toLowerCase();
-    if (key === "room") return "ROOM";
-    if (key === "cold") return "FRIDGE";
-    if (key === "mixed") return "HYBRID";
-    return null;
-  }
-
-  function mapV2PrefermentTypeToLegacy(pref) {
-    const key = String(pref || "").toLowerCase();
-    if (key === "poolish") return "POOLISH";
-    if (key === "biga") return "BIGA";
-    if (key === "tiga") return "TIGA";
-    if (key === "hybrid_poolish_biga") return "POOLISH_BIGA_HYBRID";
-    return null;
-  }
-
-  function mapV2YeastTypeToLegacy(yeast) {
-    const key = String(yeast || "").toUpperCase();
-    if (key === "ADY") return "ADY";
-    if (key === "FRESH") return "FRESH";
-    if (key === "STARTER_ONLY") return "IDY";
-    return "IDY";
-  }
-
-  function mapV2StyleToLegacy(styleId) {
-    const key = String(styleId || "").toLowerCase();
-    if (key === "neapolitan_round") return "ROUND_NEAPOLITAN";
-    if (key === "teglia_bonci") return "PAN_SICILIAN_STANDARD";
-    return null;
-  }
-
-  function selectOvenIdForType(ovenType) {
-    if (!Array.isArray(CONFIG.ovens) || !CONFIG.ovens.length) return null;
-    const key = String(ovenType || "").toLowerCase();
-    const match = CONFIG.ovens.find((oven) => {
-      const fuel = String(oven.fuelType || "").toLowerCase();
-      if (key.includes("wood") && fuel.includes("wood")) return true;
-      if (key.includes("gas") && fuel.includes("gas")) return true;
-      if (key.includes("electric") && fuel.includes("electric")) return true;
-      return false;
-    });
-    return match?.id || null;
-  }
-
-  function selectMixerIdForMethod(mixMethod) {
-    const method = String(mixMethod || "").toLowerCase();
-    if (!Array.isArray(CONFIG.mixers) || !CONFIG.mixers.length) return null;
-    const match = CONFIG.mixers.find((m) => String(m.type || "").toLowerCase().includes(method));
-    return match ? match.id : CONFIG.mixers[0]?.id || null;
-  }
-
-  function getMethodRange(method, key, fallbackMin, fallbackMax) {
-    const range = method?.ranges?.[key];
-    if (Array.isArray(range) && range.length === 2) {
-      return { min: Number(range[0]), max: Number(range[1]) };
-    }
-    return { min: fallbackMin, max: fallbackMax };
-  }
-
-  function setV2Override(key, value) {
-    if (!STATE.v2Overrides || typeof STATE.v2Overrides !== "object") STATE.v2Overrides = {};
-    if (value === null || value === undefined || value === "") {
-      delete STATE.v2Overrides[key];
-      return;
-    }
-    STATE.v2Overrides[key] = value;
-  }
-
-  function applyV2OverridesFromSource(source, keys) {
-    if (!source || typeof source !== "object") return;
-    keys.forEach((key) => {
-      if (source[key] !== undefined) setV2Override(key, source[key]);
-    });
-  }
-
-  function applyV2DefaultsToLegacySession(source) {
-    if (!source || typeof source !== "object") return;
-    const s = STATE.session;
-    s.formulaOverrides = s.formulaOverrides || {};
-    s.prefermentOptions = s.prefermentOptions || defaultState().session.prefermentOptions;
-    s.temperaturePlanning = s.temperaturePlanning || defaultState().session.temperaturePlanning;
-
-    if (Number.isFinite(Number(source.hydration_percent))) s.formulaOverrides.hydrationPct = Number(source.hydration_percent);
-    if (Number.isFinite(Number(source.salt_percent))) s.formulaOverrides.saltPct = Number(source.salt_percent);
-    if (Number.isFinite(Number(source.oil_percent))) s.formulaOverrides.oilPct = Number(source.oil_percent);
-    if (Number.isFinite(Number(source.honey_percent))) s.formulaOverrides.honeyPct = Number(source.honey_percent);
-    if (Number.isFinite(Number(source.diastatic_malt_percent))) s.formulaOverrides.maltPct = Number(source.diastatic_malt_percent);
-    if (Number.isFinite(Number(source.yeast_percent))) s.formulaOverrides.yeastPctIDY = Number(source.yeast_percent);
-    if (source.yeast_type) s.formulaOverrides.yeastType = mapV2YeastTypeToLegacy(source.yeast_type);
-
-    if (Number.isFinite(Number(source.dough_unit_weight_g))) s.ballWeightG = Number(source.dough_unit_weight_g);
-    if (Number.isFinite(Number(source.target_pizza_count))) s.ballsUsed = Math.max(1, Number(source.target_pizza_count));
-    if (source.pizza_style_id) {
-      const mappedStyle = mapV2StyleToLegacy(source.pizza_style_id);
-      if (mappedStyle) {
-        s.styleId = mappedStyle;
-        s.existingDough.styleId = mappedStyle;
-      }
-    }
-    if (source.oven_type) {
-      const mappedOven = selectOvenIdForType(source.oven_type);
-      if (mappedOven) s.oven_id = mappedOven;
-    }
-    if (s.oven_id) {
-      const selected = window.PizzaConfigLoader.getOvenById(CONFIG.ovens || [], s.oven_id);
-      if (selected?.programs?.length && (!s.oven_program_id || !selected.programs.some((p) => p.id === s.oven_program_id))) {
-        s.oven_program_id = selected.programs[0].id;
-      }
-    }
-
-    if (source.fermentation_location) {
-      const mapped = mapV2FermentationLocationToLegacy(source.fermentation_location);
-      if (mapped) s.fermentationLocation = mapped;
-    }
-
-    if (Number.isFinite(Number(source.target_fdt_c))) {
-      s.temperaturePlanning.targetDDTC = Number(source.target_fdt_c);
-    }
-
-    if (source.mix_method) {
-      const mixerId = selectMixerIdForMethod(source.mix_method);
-      if (mixerId) s.mixer_id = mixerId;
-    }
-
-    if (source.starter_enabled) {
-      s.prefermentType = "SOURDOUGH";
-      if (Number.isFinite(Number(source.starter_hydration_percent))) {
-        s.prefermentOptions.sourdough.starterHydrationPct = Number(source.starter_hydration_percent);
-      }
-      if (Number.isFinite(Number(source.starter_inoculation_percent))) {
-        s.prefermentOptions.sourdough.inoculationPctFlourBasis = Number(source.starter_inoculation_percent);
-      }
-    } else if (source.preferment_enabled) {
-      const mapped = mapV2PrefermentTypeToLegacy(source.preferment_type);
-      if (mapped) s.prefermentType = mapped;
-      if (mapped === "BIGA" && Number.isFinite(Number(source.preferment_flour_percent_of_total))) {
-        s.prefermentOptions.biga.bigaPercentTotalFlour = Number(source.preferment_flour_percent_of_total);
-      }
-      if (mapped === "BIGA" && Number.isFinite(Number(source.preferment_hydration_percent))) {
-        s.prefermentOptions.biga.bigaHydrationPct = Number(source.preferment_hydration_percent);
-      }
-      if (mapped === "TIGA" && Number.isFinite(Number(source.preferment_flour_percent_of_total))) {
-        s.prefermentOptions.tiga.tigaPercentTotalFlour = Number(source.preferment_flour_percent_of_total);
-      }
-      if (mapped === "POOLISH_BIGA_HYBRID" && Number.isFinite(Number(source.hybrid_biga_share_percent))) {
-        s.prefermentOptions.hybrid.bigaPercentOfRemainderFlour = Number(source.hybrid_biga_share_percent);
-      }
-      if (mapped === "POOLISH_BIGA_HYBRID" && Number.isFinite(Number(source.biga_hydration_percent))) {
-        s.prefermentOptions.hybrid.bigaHydrationPct = Number(source.biga_hydration_percent);
-      }
-    } else if (source.preferment_enabled === false) {
-      s.prefermentType = "NONE";
-    }
-
-    const bulkHours = Number(source.bulk_ferment_hours);
-    const coldHours = Number(source.cold_ferment_hours);
-    const ballHours = Number(source.ball_or_pan_ferment_hours);
-    if ([bulkHours, coldHours, ballHours].some((v) => Number.isFinite(v))) {
-      const total = [bulkHours, coldHours, ballHours].reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0);
-      s.totalFermentationHours = normalizeFermentationHours(total, s.prefermentType);
-    }
-  }
-
-  function applyV2MethodDefaults(method) {
-    if (!method) return;
-    const defaults = method.defaults || {};
-    const flags = method.flags || {};
-    STATE.session.doughMethodId = method.method_id || STATE.session.doughMethodId;
-    if (!STATE.v2Overrides || typeof STATE.v2Overrides !== "object") STATE.v2Overrides = {};
-    STATE.v2Overrides = {};
-
-    applyV2DefaultsToLegacySession(defaults);
-
-    if (method.ferment_type === "starter") {
-      STATE.session.prefermentType = "SOURDOUGH";
-    } else if (method.ferment_type === "direct") {
-      STATE.session.prefermentType = "NONE";
-    } else if (defaults.preferment_type) {
-      const mapped = mapV2PrefermentTypeToLegacy(defaults.preferment_type);
-      if (mapped) STATE.session.prefermentType = mapped;
-    }
-    applyV2OverridesFromSource(defaults, [
-      "sugar_percent",
-      "preferment_flour_percent_of_total",
-      "preferment_hydration_percent",
-      "preferment_mature_hours",
-      "hybrid_poolish_share_percent",
-      "hybrid_biga_share_percent",
-      "poolish_hydration_percent",
-      "biga_hydration_percent",
-      "starter_peak_window_hours",
-      "bulk_ferment_hours",
-      "cold_ferment_hours",
-      "ball_or_pan_ferment_hours",
-      "batching_max_dough_mass_g",
-      "ddt_model_enabled",
-      "warnings_enabled"
-    ]);
-
-    if (flags.oil_allowed === false) STATE.session.formulaOverrides.oilPct = 0;
-    if (flags.honey_allowed === false) STATE.session.formulaOverrides.honeyPct = 0;
-    if (flags.sugar_allowed === false) setV2Override("sugar_percent", 0);
-    if (flags.diastatic_malt_allowed === false) STATE.session.formulaOverrides.maltPct = 0;
-  }
-
-  function applyV2PresetOverrides(preset) {
-    if (!preset || preset.id === "manual") {
-      STATE.session.doughPresetId = "manual";
-      return;
-    }
-
-    const method = preset.method_id ? getV2MethodById(preset.method_id) : null;
-    if (method) {
-      applyV2MethodDefaults(method);
-      STATE.session.doughMethodId = method.method_id;
-    }
-
-    const overrides = preset.overrides || {};
-    applyV2DefaultsToLegacySession(overrides);
-
-    if (overrides.preferment_type) {
-      const mapped = mapV2PrefermentTypeToLegacy(overrides.preferment_type);
-      if (mapped) STATE.session.prefermentType = mapped;
-    }
-
-    applyV2OverridesFromSource(overrides, [
-      "sugar_percent",
-      "preferment_flour_percent_of_total",
-      "preferment_hydration_percent",
-      "preferment_mature_hours",
-      "hybrid_poolish_share_percent",
-      "hybrid_biga_share_percent",
-      "poolish_hydration_percent",
-      "biga_hydration_percent",
-      "starter_peak_window_hours",
-      "bulk_ferment_hours",
-      "cold_ferment_hours",
-      "ball_or_pan_ferment_hours",
-      "batching_max_dough_mass_g",
-      "ddt_model_enabled",
-      "warnings_enabled"
-    ]);
-
-    STATE.session.doughPresetId = preset.id;
-  }
-
-  function resolveV2FieldValue(key, method, preset) {
-    if (STATE.v2Overrides && STATE.v2Overrides[key] != null) return STATE.v2Overrides[key];
-    if (preset?.overrides && preset.overrides[key] != null) return preset.overrides[key];
-    if (method?.defaults && method.defaults[key] != null) return method.defaults[key];
-    return null;
   }
 
   /* ---------- Dough totals ---------- */
@@ -1388,19 +1098,6 @@ function normalizeFermentationHours(hours, prefermentType) {
     const plan = getPlan();
     const v2 = getResolvedSessionV2();
     const derived = v2.derived_session_v2 || {};
-    const v2Methods = getV2Methods();
-    const v2Presets = getV2PresetOptions();
-    const activeMethod = getV2MethodById(s.doughMethodId);
-    const activePreset = getV2PresetById(s.doughPresetId);
-    const methodFlags = activeMethod?.flags || {};
-    const methodSupports = activeMethod?.supports || {};
-    const prefermentSupported = methodSupports.preferment !== false;
-    const starterSupported = methodSupports.starter !== false;
-    const hybridSupported = methodSupports.hybrid !== false;
-    const methodNotes = Array.isArray(activeMethod?.notes_md) ? activeMethod.notes_md.join(" ") : (activeMethod?.notes || "");
-    const presetNotes = Array.isArray(activePreset?.selection_notes_md)
-      ? activePreset.selection_notes_md.join(" ")
-      : (activePreset?.description || "");
     const waterRec = recommendWaterTempC();
     const ballsUsed = ensureMinimumBallLogic();
     const ov = getSelectedOven();
@@ -4433,17 +4130,6 @@ function renderMaking() {
         ovens: CONFIG.ovens || [],
         mixers: CONFIG.mixers || []
       });
-
-      const methods = window.SessionResolverV2.getMethods ? window.SessionResolverV2.getMethods() : [];
-      const presets = window.SessionResolverV2.getPresets ? window.SessionResolverV2.getPresets() : [];
-      if (STATE.session) {
-        if (!methods.some((m) => m.method_id === STATE.session.doughMethodId) && methods.length) {
-          STATE.session.doughMethodId = methods[0].method_id;
-        }
-        if (!presets.some((p) => p.id === STATE.session.doughPresetId)) {
-          STATE.session.doughPresetId = "manual";
-        }
-      }
     }
 
     if (DEV) {

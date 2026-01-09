@@ -123,14 +123,6 @@
     return [...(STORE.presets || []), ...(STORE.customPresets || [])];
   }
 
-  function getMethods() {
-    return STORE.methods || [];
-  }
-
-  function getPresets() {
-    return getAllPresets();
-  }
-
   function getMethodById(id) {
     if (!STORE.methods.length) return FALLBACK_METHOD;
     return STORE.methods.find((m) => m.method_id === id) || STORE.methods[0] || FALLBACK_METHOD;
@@ -664,8 +656,6 @@
     legacyToV2Inputs,
     v2DerivedToLegacyDashboard,
     getPizzaioloBundle,
-    setCatalogs,
-    getMethods,
-    getPresets
+    setCatalogs
   };
 })();
