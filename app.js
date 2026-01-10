@@ -215,6 +215,10 @@
     localStorage.setItem(LS_KEY, JSON.stringify(payload));
   }
 
+  function assetUrl(relPath) {
+    return new URL(relPath, document.baseURI).toString();
+  }
+
   async function fetchJson(path) {
     const res = await fetch(path, { cache: "no-store" });
     if (!res.ok) throw new Error(`Failed to load ${path}`);
@@ -1424,11 +1428,21 @@
     loadState();
     APP_STATE.orders = APP_STATE.orders.length ? APP_STATE.orders : DEFAULT_ORDERS;
 
+    const dataAssets = {
+      methods: assetUrl("data/dough_methods.json"),
+      presets: assetUrl("data/dough_presets.json"),
+      ovens: assetUrl("data/ovens.json"),
+      mixers: assetUrl("data/mixers.json")
+    };
+    Object.entries(dataAssets).forEach(([key, url]) => {
+      console.log(`[Data] ${key} url = ${url}`);
+    });
+
     const [methodsJson, presetsJson, ovensJson, mixersJson] = await Promise.all([
-      fetchJson("/data/dough_methods.json"),
-      fetchJson("/data/dough_presets.json"),
-      fetchJson("/data/ovens.json"),
-      fetchJson("/data/mixers.json")
+      fetchJson(dataAssets.methods),
+      fetchJson(dataAssets.presets),
+      fetchJson(dataAssets.ovens),
+      fetchJson(dataAssets.mixers)
     ]);
 
     APP_STATE.methodsJson = methodsJson;
