@@ -222,7 +222,8 @@
   async function fetchJson(path) {
     const res = await fetch(path, { cache: "no-store" });
     if (!res.ok) throw new Error(`Failed to load ${path}`);
-    return res.json();
+    const text = await res.text();
+    return JSON.parse(stripJsonComments(text));
   }
 
   function getMethodById(id) {
