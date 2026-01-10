@@ -1,7 +1,7 @@
 /* ============================================================
    Schema Coverage Map
    - Core session identity + scheduling:
-     planned_eat_time_iso (UI: Session Settings), timezone (UI), dough_modality (UI)
+     planned_eat_time_iso (UI: Session Settings), timezone (internal), dough_modality (UI)
    - Canonical session core:
      pizza_style_id (UI: Session Settings), method_id (UI: Dough Method),
      oven_type (UI: Equipment), flour_blend_id (UI: Dough Method),
@@ -41,6 +41,7 @@
 
   const LS_KEY = "mm_app_state_v3";
   const ASSET_BASE_KEY = "mm_asset_base";
+  const CUSTOM_PRESET_ID = "manual_custom";
 
   const APP_STATE = {
     catalogs: {
@@ -54,7 +55,9 @@
       inputs: {},
       resolved: {},
       derived: {},
-      warnings: [],
+    warnings: [],
+    safetyViolations: {},
+    presetNotices: [],
       requiredKeys: [],
       coverageMissing: []
     },
@@ -70,6 +73,7 @@
     planned_eat_time_iso: "",
     timezone: "America/Toronto",
     dough_modality: "make_dough",
+    existing_dough_state: "frozen",
     pizza_style_id: "neapolitan_round",
     method_id: "direct",
     preset_id: "manual_custom",
@@ -141,6 +145,10 @@
   const DEFAULT_ORDERS = [
     { id: "order_1", name: "Guest", quantity: 2, notes: "" }
   ];
+
+  function cloneDefaultOrders() {
+    return DEFAULT_ORDERS.map((order) => ({ ...order }));
+  }
 
   function escapeHtml(str) {
     return String(str ?? "")
@@ -349,6 +357,24 @@
     return APP_STATE.catalogs.mixers.find((m) => m.id === id) || null;
   }
 
+  function deriveMethodIdFromPrefermentType(type) {
+    if (type === "poolish") return "poolish";
+    if (type === "biga") return "biga";
+    if (type === "tiga") return "tiga";
+    if (type === "hybrid_poolish_biga") return "hybrid_poolish_biga";
+    if (type === "sourdough") return "sourdough";
+    return "direct";
+  }
+
+  function prefermentTypeFromMethod(methodId) {
+    if (methodId === "poolish") return "poolish";
+    if (methodId === "biga") return "biga";
+    if (methodId === "tiga") return "tiga";
+    if (methodId === "hybrid_poolish_biga") return "hybrid_poolish_biga";
+    if (methodId === "sourdough") return "sourdough";
+    return "direct";
+  }
+
   function buildRequiredSessionKeys(methodsJson) {
     const keys = new Set();
     const schema = methodsJson.session_schema || {};
@@ -427,12 +453,7 @@
     }
 
     if (!merged.preferment_type) {
-      if (method?.method_id === "sourdough") merged.preferment_type = "starter";
-      else if (method?.method_id === "hybrid_poolish_biga") merged.preferment_type = "hybrid_poolish_biga";
-      else if (method?.method_id === "poolish") merged.preferment_type = "poolish";
-      else if (method?.method_id === "biga") merged.preferment_type = "biga";
-      else if (method?.method_id === "tiga") merged.preferment_type = "tiga";
-      else merged.preferment_type = "direct";
+      merged.preferment_type = prefermentTypeFromMethod(method?.method_id);
     }
 
     if (method?.supports) {
@@ -441,6 +462,86 @@
     }
 
     return merged;
+  }
+
+  function getPresetPrefermentType(preset) {
+    if (!preset) return null;
+    const overrides = preset.overrides || {};
+    if (overrides.preferment_type) {
+      return overrides.preferment_type === "starter" ? "sourdough" : overrides.preferment_type;
+    }
+    if (overrides.method_id) return prefermentTypeFromMethod(overrides.method_id);
+    if (preset.method_id) return prefermentTypeFromMethod(preset.method_id);
+    if (overrides.starter_enabled) return "sourdough";
+    if (overrides.preferment_enabled === false) return "direct";
+    return null;
+  }
+
+  function syncPrefermentFlags(inputs, method) {
+    const type = inputs.preferment_type || "direct";
+    const prefermentEnabled = type !== "direct" && type !== "sourdough";
+    const starterEnabled = type === "sourdough";
+    inputs.preferment_enabled = prefermentEnabled;
+    inputs.starter_enabled = starterEnabled;
+
+    if (method?.supports) {
+      if (!method.supports.preferment) inputs.preferment_enabled = false;
+      if (!method.supports.starter) inputs.starter_enabled = false;
+    }
+  }
+
+  function applyMethodDefaultsForChange(nextMethod, prevMethodId) {
+    if (!nextMethod) return;
+    const prevDefaults = getMethodById(prevMethodId)?.defaults || {};
+    const nextDefaults = nextMethod.defaults || {};
+    Object.entries(nextDefaults).forEach(([key, value]) => {
+      const current = APP_STATE.session.inputs[key];
+      if (current === undefined || current === null || current === "" || current === prevDefaults[key]) {
+        APP_STATE.session.inputs[key] = value;
+      }
+    });
+  }
+
+  function recordPresetNotice(message) {
+    if (!message) return;
+    APP_STATE.session.presetNotices = [message];
+  }
+
+  function applyPresetSelection(preset) {
+    if (!preset) return;
+    const overrides = preset.overrides || {};
+    const prefermentType = getPresetPrefermentType(preset);
+    const prevMethodId = APP_STATE.session.inputs.method_id;
+    const prevPrefermentType = APP_STATE.session.inputs.preferment_type;
+
+    if (prefermentType) {
+      APP_STATE.session.inputs.preferment_type = prefermentType;
+      APP_STATE.session.inputs.method_id = deriveMethodIdFromPrefermentType(prefermentType);
+      applyMethodDefaultsForChange(getMethodById(APP_STATE.session.inputs.method_id), prevMethodId);
+      if (prefermentType !== prevPrefermentType) {
+        recordPresetNotice(`Preset set preferment type to ${prefermentType}.`);
+      }
+    }
+
+    Object.entries(overrides).forEach(([key, value]) => {
+      if (key === "method_id") return;
+      if (value !== undefined && value !== null) {
+        APP_STATE.session.inputs[key] = value;
+      }
+    });
+
+    if (preset.pizza_style_id) {
+      APP_STATE.session.inputs.pizza_style_id = preset.pizza_style_id;
+    }
+    if (preset.oven_type) {
+      APP_STATE.session.inputs.oven_type = preset.oven_type;
+    }
+    if (preset.flour_blend_id) {
+      APP_STATE.session.inputs.flour_blend_id = preset.flour_blend_id;
+    }
+
+    APP_STATE.session.inputs.preset_id = preset.id;
+    syncPrefermentFlags(APP_STATE.session.inputs, getMethodById(APP_STATE.session.inputs.method_id));
   }
 
   function inferMethodFromPreset(preset) {
@@ -486,9 +587,10 @@
     });
   }
 
-  function applySafetyRules(resolved, safetyRules, warnings, inputs) {
-    if (!safetyRules) return;
+  function applySafetyRules(resolved, safetyRules, warnings) {
+    if (!safetyRules) return {};
     const ovenType = resolved.oven_type;
+    const violations = {};
     const applyRule = (field, rule) => {
       if (!rule) return;
       const current = Number(resolved[field] ?? 0);
@@ -499,9 +601,8 @@
         max = rule.max_percent_by_oven_type[ovenType];
       }
       if (max != null && current > max) {
-        resolved[field] = max;
-        if (inputs) inputs[field] = max;
-        warnings.push(`Safety rule clamped ${field} to ${max}% for oven type ${ovenType}.`);
+        violations[field] = { max, current };
+        warnings.push(`Safety warning: ${field} exceeds ${max}% for oven type ${ovenType}.`);
       }
     };
 
@@ -515,22 +616,48 @@
         (rule) => rule.oven_type === ovenType
       );
       if (disallow && Number(resolved.diastatic_malt_percent || 0) > 0) {
-        resolved.diastatic_malt_percent = 0;
-        if (inputs) inputs.diastatic_malt_percent = 0;
-        warnings.push(`Safety rule disabled diastatic malt for oven type ${ovenType}.`);
+        violations.diastatic_malt_percent = {
+          max: 0,
+          current: Number(resolved.diastatic_malt_percent || 0)
+        };
+        warnings.push(`Safety warning: diastatic malt is not recommended for oven type ${ovenType}.`);
       }
     }
+
+    return violations;
   }
 
   function resolveSession() {
-    const warnings = [];
+    const warnings = [...(APP_STATE.session.presetNotices || [])];
     const inputs = { ...APP_STATE.session.inputs };
 
-    const selectedPreset = getPresetById(inputs.preset_id) || APP_STATE.presets[0] || null;
-    const inferredMethodId = inferMethodFromPreset(selectedPreset);
-    if (inferredMethodId && inferredMethodId !== inputs.method_id) {
-      warnings.push(`Preset forced method switch to ${inferredMethodId}.`);
-      inputs.method_id = inferredMethodId;
+    const selectedPreset = getPresetById(inputs.preset_id) || null;
+    const presetType = getPresetPrefermentType(selectedPreset);
+    const presetStyle = selectedPreset?.pizza_style_id || null;
+
+    if (inputs.preferment_type === "starter") {
+      inputs.preferment_type = "sourdough";
+    }
+
+    if (selectedPreset && selectedPreset.id !== CUSTOM_PRESET_ID) {
+      if (presetType && inputs.preferment_type && inputs.preferment_type !== presetType) {
+        warnings.push("Preset cleared because preferment type changed.");
+        inputs.preset_id = CUSTOM_PRESET_ID;
+      }
+      if (presetStyle && inputs.pizza_style_id && inputs.pizza_style_id !== presetStyle) {
+        warnings.push("Preset cleared because style changed.");
+        inputs.preset_id = CUSTOM_PRESET_ID;
+      }
+    }
+
+    if (!inputs.preferment_type && presetType) {
+      inputs.preferment_type = presetType;
+    }
+
+    const derivedMethodId = deriveMethodIdFromPrefermentType(inputs.preferment_type || "direct");
+    if (derivedMethodId && derivedMethodId !== inputs.method_id) {
+      warnings.push(`Preferment type set method to ${derivedMethodId}.`);
+      inputs.method_id = derivedMethodId;
     }
 
     let method = getMethodById(inputs.method_id) || APP_STATE.methods[0];
@@ -541,12 +668,15 @@
     }
 
     const normalizedInputs = normalizeInputs(inputs, method?.defaults || {}, method);
+    syncPrefermentFlags(normalizedInputs, method);
+    enforceLockedFermentTotal(normalizedInputs, warnings);
 
     let resolved = mergeOverrides(normalizedInputs, {});
-    if (selectedPreset?.overrides) {
+    if (selectedPreset?.overrides && inputs.preset_id !== CUSTOM_PRESET_ID) {
       resolved = mergeOverrides(resolved, selectedPreset.overrides);
     }
-    resolved = mergeOverrides(resolved, normalizedInputs);
+
+    syncPrefermentFlags(resolved, method);
 
     if (selectedPreset?.overrides && APP_STATE.session.requiredKeys?.length) {
       Object.keys(selectedPreset.overrides).forEach((key) => {
@@ -556,9 +686,13 @@
       });
     }
 
-    if (selectedPreset?.pizza_style_id) resolved.pizza_style_id = selectedPreset.pizza_style_id;
-    if (selectedPreset?.oven_type) resolved.oven_type = selectedPreset.oven_type;
-    if (selectedPreset?.flour_blend_id) resolved.flour_blend_id = selectedPreset.flour_blend_id;
+    resolved.method_id = deriveMethodIdFromPrefermentType(resolved.preferment_type || "direct");
+    if (resolved.method_id !== method?.method_id) {
+      method = getMethodById(resolved.method_id) || method;
+    }
+
+    resolved.pizza_style_id = normalizedInputs.pizza_style_id;
+    resolved.flour_blend_id = normalizedInputs.flour_blend_id;
 
     const oven = getOvenById(resolved.oven_id);
     if (oven) {
@@ -568,11 +702,17 @@
     }
 
     applyRangeClamps(resolved, method, warnings, normalizedInputs);
-    applySafetyRules(resolved, APP_STATE.methodsJson?.global_defaults?.ingredient_safety_rules, warnings, normalizedInputs);
+    const safetyViolations = applySafetyRules(
+      resolved,
+      APP_STATE.methodsJson?.global_defaults?.ingredient_safety_rules,
+      warnings
+    );
 
     APP_STATE.session.inputs = normalizedInputs;
     APP_STATE.session.resolved = resolved;
     APP_STATE.session.warnings = warnings;
+    APP_STATE.session.safetyViolations = safetyViolations;
+    APP_STATE.session.presetNotices = [];
 
     return { resolved, method, preset: selectedPreset, warnings };
   }
@@ -591,6 +731,7 @@
     const mixers = APP_STATE.catalogs.mixers;
     let mixer = getMixerById(resolved.mixer_id) || mixers[0] || null;
     if (mixer && !resolved.mixer_id) resolved.mixer_id = mixer.id;
+    if (mixer?.mixer_class) resolved.mix_method = mixer.mixer_class;
 
     let frictionFactorC = 3;
     if (mixer?.friction_factor_c_range?.length === 2) {
@@ -625,6 +766,9 @@
       }
     } else {
       ballsUsed = 1;
+      if (resolved.target_pizza_count !== 1) {
+        APP_STATE.session.inputs.target_pizza_count = 1;
+      }
       const minPanWeight = 750;
       if (!Number.isFinite(doughUnitWeight) || doughUnitWeight < minPanWeight) {
         APP_STATE.session.warnings.push(`Pan dough weight clamped to ${minPanWeight}g minimum.`);
@@ -670,7 +814,11 @@
     derived.total_honey_g = round(totalFlour * (Number(resolved.honey_percent || 0) / 100), 1);
     derived.total_malt_g = round(totalFlour * (Number(resolved.diastatic_malt_percent || 0) / 100), 1);
     derived.total_sugar_g = round(totalFlour * (Number(resolved.sugar_percent || 0) / 100), 1);
-    derived.total_yeast_g = round(totalFlour * (Number(resolved.yeast_percent || 0) / 100), 2);
+    const idyEquivYeastG = totalFlour * (Number(resolved.yeast_percent || 0) / 100);
+    const yeastType = resolved.yeast_type || "idy";
+    const yeastFactor = yeastType === "ady" ? 3 : yeastType === "fresh" ? 9 : 1;
+    derived.yeast_idy_equiv_g = round(idyEquivYeastG, 2);
+    derived.total_yeast_g = round(idyEquivYeastG * yeastFactor, 2);
 
     derived.preferment_flour_g = 0;
     derived.preferment_water_g = 0;
@@ -785,9 +933,81 @@
     render();
   }
 
-  function setInputValue(key, value) {
-    APP_STATE.session.inputs[key] = value;
+  function applyInputChanges(updates, options = {}) {
+    const { markPresetCustom = true } = options;
+    const inputs = APP_STATE.session.inputs;
+    const entries = Object.entries(updates);
+    const hasChanges = entries.some(([key, value]) => inputs[key] !== value);
+    if (!hasChanges) return;
+
+    if (
+      markPresetCustom &&
+      inputs.preset_id &&
+      inputs.preset_id !== CUSTOM_PRESET_ID &&
+      !Object.prototype.hasOwnProperty.call(updates, "preset_id")
+    ) {
+      inputs.preset_id = CUSTOM_PRESET_ID;
+    }
+
+    entries.forEach(([key, value]) => {
+      inputs[key] = value;
+    });
+
     updateStateAndRender();
+  }
+
+  function resetOrdersForStyle(styleId) {
+    if (styleId !== "neapolitan_round") {
+      APP_STATE.orders = [
+        { id: cryptoSafeId("order"), name: "Party", quantity: 1, notes: "" }
+      ];
+      return;
+    }
+    APP_STATE.orders = cloneDefaultOrders();
+  }
+
+  function applyStyleDefaults(styleId) {
+    if (styleId !== "neapolitan_round") {
+      return { dough_unit_weight_g: 750, target_pizza_count: 1 };
+    }
+    return { dough_unit_weight_g: 270, target_pizza_count: 6 };
+  }
+
+  function applyPrefermentTypeChange(value, options = {}) {
+    const { markPresetCustom = true } = options;
+    const prevMethodId = APP_STATE.session.inputs.method_id;
+    const nextMethodId = deriveMethodIdFromPrefermentType(value);
+    APP_STATE.session.inputs.preferment_type = value;
+    APP_STATE.session.inputs.method_id = nextMethodId;
+    applyMethodDefaultsForChange(getMethodById(nextMethodId), prevMethodId);
+    syncPrefermentFlags(APP_STATE.session.inputs, getMethodById(nextMethodId));
+    if (markPresetCustom && APP_STATE.session.inputs.preset_id !== CUSTOM_PRESET_ID) {
+      APP_STATE.session.inputs.preset_id = CUSTOM_PRESET_ID;
+    }
+    updateStateAndRender();
+  }
+
+  function enforceLockedFermentTotal(inputs, warnings) {
+    const bulk = Number(inputs.bulk_ferment_hours || 0);
+    const cold = Number(inputs.cold_ferment_hours || 0);
+    const ball = Number(inputs.ball_or_pan_ferment_hours || 0);
+    const currentTotal = round(bulk + cold + ball, 1);
+    let target = 0;
+    if (currentTotal > 0 && currentTotal <= 24) target = 24;
+    if (currentTotal > 24) target = 48;
+    if (currentTotal === 0) target = 0;
+    if (currentTotal === target) return;
+
+    warnings.push(`Total fermentation hours adjusted to ${target}.`);
+    if (target === 0 || currentTotal === 0) {
+      inputs.bulk_ferment_hours = 0;
+      inputs.cold_ferment_hours = 0;
+      inputs.ball_or_pan_ferment_hours = 0;
+      return;
+    }
+    inputs.bulk_ferment_hours = round(target * (bulk / currentTotal), 1);
+    inputs.cold_ferment_hours = round(target * (cold / currentTotal), 1);
+    inputs.ball_or_pan_ferment_hours = round(target * (ball / currentTotal), 1);
   }
 
   function handleNumberInput(el, key, opts = {}) {
@@ -796,14 +1016,14 @@
       const raw = e.target.value;
       if (raw === "") {
         if (opts.allowEmpty) {
-          setInputValue(key, null);
+          applyInputChanges({ [key]: null }, opts);
         }
         return;
       }
       const value = Number(raw);
       if (!Number.isFinite(value)) return;
       const rounded = opts.integer ? Math.round(value) : value;
-      setInputValue(key, rounded);
+      applyInputChanges({ [key]: rounded }, opts);
     });
   }
 
@@ -854,20 +1074,24 @@
     const totalPizzas = totalPizzasFromOrders();
     const isPan = resolved.pizza_style_id !== "neapolitan_round";
     const prefermentType = resolved.preferment_type || "direct";
-    const showPrefermentFields = prefermentType !== "direct" && prefermentType !== "starter";
+    const showPrefermentFields = prefermentType !== "direct" && prefermentType !== "sourdough";
     const showHybridFields = prefermentType === "hybrid_poolish_biga";
-    const showStarterFields = prefermentType === "starter";
+    const showStarterFields = prefermentType === "sourdough";
+    const showPrefermentCard = prefermentType !== "direct";
+    const existingDough = resolved.dough_modality === "existing_dough";
+    const safetyWarnings = APP_STATE.session.safetyViolations || {};
     const totalFermentHours =
       Number(resolved.bulk_ferment_hours || 0) +
       Number(resolved.cold_ferment_hours || 0) +
       Number(resolved.ball_or_pan_ferment_hours || 0);
+    const lockedFermentTotal = totalFermentHours <= 0 ? 0 : totalFermentHours <= 24 ? 24 : 48;
     const fermentMode =
       totalFermentHours > 0 && (resolved.cold_ferment_hours > 0 || resolved.ball_or_pan_ferment_hours > 0)
         ? "double"
         : "single";
 
     root.innerHTML = `
-      <div class="card">
+      <div class="card" id="card-dashboard">
         <h2>Pizza Party Dashboard</h2>
         <p>One dough for everyone. Orders only change how many balls you need.</p>
         <div class="kpi">
@@ -878,7 +1102,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-session-settings">
         <h3>Session Settings</h3>
         <div class="grid-2">
           <div>
@@ -887,14 +1111,10 @@
             <div class="small">Timeline is scheduled backward from this time.</div>
           </div>
           <div>
-            <label>Timezone</label>
-            <input type="text" id="timezone" value="${escapeHtml(resolved.timezone)}">
-          </div>
-          <div>
             <label>Dough modality</label>
             <select id="doughModality">
               <option value="make_dough" ${resolved.dough_modality === "make_dough" ? "selected" : ""}>Make dough</option>
-              <option value="use_existing" ${resolved.dough_modality === "use_existing" ? "selected" : ""}>Use existing dough</option>
+              <option value="existing_dough" ${resolved.dough_modality === "existing_dough" ? "selected" : ""}>Use existing dough</option>
             </select>
           </div>
           <div>
@@ -905,10 +1125,19 @@
             </select>
             <div class="small">Pan style forces 1 pan and minimum dough weight.</div>
           </div>
+          <div>
+            <label>Dough preset</label>
+            <select id="presetSelect">
+              ${APP_STATE.presets.map((p) => `
+                <option value="${p.id}" ${p.id === resolved.preset_id ? "selected" : ""}>${escapeHtml(p.label)}</option>
+              `).join("")}
+            </select>
+            <div class="small">${escapeHtml(preset?.label || "")}</div>
+          </div>
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-equipment">
         <h3>Equipment</h3>
         <div class="grid-2">
           <div>
@@ -938,59 +1167,30 @@
                 <option value="${m.id}" ${m.id === resolved.mixer_id ? "selected" : ""}>${escapeHtml(m.display_name)}</option>
               `).join("")}
             </select>
-            <div style="margin-top:10px;">
-              <label>Mix method</label>
-              <select id="mixMethod">
-                ${(APP_STATE.methodsJson?.enums?.mix_method || ["hand", "spiral", "planetary", "stand_mixer", "no_knead"])
-                  .map((m) => `<option value="${m}" ${resolved.mix_method === m ? "selected" : ""}>${escapeHtml(m)}</option>`)
-                  .join("")}
-              </select>
-            </div>
-            <div style="margin-top:10px;">
-              <label>Oven type</label>
-              <select id="ovenType">
-                ${(APP_STATE.methodsJson?.enums?.oven_type || []).map((type) => `
-                  <option value="${type}" ${resolved.oven_type === type ? "selected" : ""}>${escapeHtml(type)}</option>
-                `).join("")}
-              </select>
-            </div>
           </div>
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-method">
         <h3>Dough Method & Preset</h3>
-        <div class="grid-2">
-          <div>
-            <label>Dough method</label>
-            <select id="methodSelect">
-              ${APP_STATE.methods.map((m) => `
-                <option value="${m.method_id}" ${m.method_id === resolved.method_id ? "selected" : ""}>${escapeHtml(m.display_name)}</option>
-              `).join("")}
-            </select>
-            <div class="small">${escapeHtml(method?.display_name || "")}</div>
+        ${existingDough ? `
+          <div class="grid-2">
+            <div>
+              <label>Existing dough condition</label>
+              <select id="existingDoughState">
+                <option value="frozen" ${resolved.existing_dough_state === "frozen" ? "selected" : ""}>Frozen</option>
+                <option value="thawed" ${resolved.existing_dough_state === "thawed" ? "selected" : ""}>Thawed</option>
+                <option value="store_bought" ${resolved.existing_dough_state === "store_bought" ? "selected" : ""}>Store bought</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label>Dough preset</label>
-            <select id="presetSelect">
-              ${APP_STATE.presets.map((p) => `
-                <option value="${p.id}" ${p.id === resolved.preset_id ? "selected" : ""}>${escapeHtml(p.label)}</option>
-              `).join("")}
-            </select>
-            <div class="small">${escapeHtml(preset?.label || "")}</div>
-          </div>
-          <div>
-            <label>Flour blend</label>
-            <select id="flourBlend">
-              ${(APP_STATE.methodsJson?.enums?.flour_blend_id || []).map((blend) => `
-                <option value="${blend}" ${resolved.flour_blend_id === blend ? "selected" : ""}>${escapeHtml(blend)}</option>
-              `).join("")}
-            </select>
-          </div>
-        </div>
+        ` : `
+          <div class="small">Method is derived from your Preferment Type selection.</div>
+          <div class="small" style="margin-top:6px;">Current method: ${escapeHtml(method?.display_name || "—")}</div>
+        `}
       </div>
 
-      <div class="card">
+      <div class="card" id="card-sizing" style="${existingDough ? "display:none;" : ""}">
         <h3>Sizing</h3>
         <div class="grid-2">
           <div>
@@ -1000,10 +1200,6 @@
           <div>
             <label>${isPan ? "Pan dough weight (g)" : "Ball weight (g)"}</label>
             <input type="number" id="ballWeight" value="${escapeHtml(derived.dough_unit_weight_g)}">
-          </div>
-          <div>
-            <label>Max batch dough (g)</label>
-            <input type="number" id="batchMax" value="${escapeHtml(resolved.batching_max_dough_mass_g)}">
           </div>
           ${isPan ? `
           <div>
@@ -1026,7 +1222,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-fermentation" style="${existingDough ? "display:none;" : ""}">
         <h3>Fermentation Plan</h3>
         <div class="grid-2">
           <div>
@@ -1037,7 +1233,7 @@
               <option value="biga" ${resolved.preferment_type === "biga" ? "selected" : ""}>Biga</option>
               <option value="tiga" ${resolved.preferment_type === "tiga" ? "selected" : ""}>Tiga</option>
               <option value="hybrid_poolish_biga" ${resolved.preferment_type === "hybrid_poolish_biga" ? "selected" : ""}>Poolish + Biga Hybrid</option>
-              <option value="starter" ${resolved.preferment_type === "starter" ? "selected" : ""}>Sourdough Starter</option>
+              <option value="sourdough" ${resolved.preferment_type === "sourdough" ? "selected" : ""}>Sourdough Starter</option>
             </select>
           </div>
           <div>
@@ -1057,7 +1253,11 @@
           </div>
           <div>
             <label>Total fermentation hours</label>
-            <input type="number" id="fermTotal" value="${escapeHtml(round(totalFermentHours, 1))}">
+            <select id="fermTotal">
+              ${[0, 24, 48].map((value) => `
+                <option value="${value}" ${lockedFermentTotal === value ? "selected" : ""}>${value}</option>
+              `).join("")}
+            </select>
           </div>
           <div>
             <label>Bulk ferment hours</label>
@@ -1074,21 +1274,14 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-warnings" style="${existingDough ? "display:none;" : ""}">
         <h3>Warnings</h3>
         <div id="session-warnings"></div>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-preferment" style="${existingDough || !showPrefermentCard ? "display:none;" : ""}">
         <h3>Preferment Options</h3>
         <div class="grid-2">
-          <div>
-            <label>Preferment enabled</label>
-            <select id="prefermentEnabled">
-              <option value="true" ${resolved.preferment_enabled ? "selected" : ""}>Yes</option>
-              <option value="false" ${!resolved.preferment_enabled ? "selected" : ""}>No</option>
-            </select>
-          </div>
           ${showPrefermentFields ? `
           <div>
             <label>Preferment flour % of total</label>
@@ -1123,13 +1316,6 @@
           ` : ""}
           ${showStarterFields ? `
           <div>
-            <label>Starter enabled</label>
-            <select id="starterEnabled">
-              <option value="true" ${resolved.starter_enabled ? "selected" : ""}>Yes</option>
-              <option value="false" ${!resolved.starter_enabled ? "selected" : ""}>No</option>
-            </select>
-          </div>
-          <div>
             <label>Starter hydration %</label>
             <input type="number" id="starterHydration" value="${escapeHtml(resolved.starter_hydration_percent ?? "")}">
           </div>
@@ -1145,7 +1331,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-formula" style="${existingDough ? "display:none;" : ""}">
         <h3>Formula Overrides</h3>
         <div class="grid-2">
           <div>
@@ -1158,19 +1344,19 @@
           </div>
           <div>
             <label>Oil %</label>
-            <input type="number" id="oil" value="${escapeHtml(resolved.oil_percent)}">
+            <input type="number" id="oil" class="${safetyWarnings.oil_percent ? "input-warning" : ""}" value="${escapeHtml(resolved.oil_percent)}">
           </div>
           <div>
             <label>Honey %</label>
-            <input type="number" id="honey" value="${escapeHtml(resolved.honey_percent)}">
+            <input type="number" id="honey" class="${safetyWarnings.honey_percent ? "input-warning" : ""}" value="${escapeHtml(resolved.honey_percent)}">
           </div>
           <div>
             <label>Sugar %</label>
-            <input type="number" id="sugar" value="${escapeHtml(resolved.sugar_percent)}">
+            <input type="number" id="sugar" class="${safetyWarnings.sugar_percent ? "input-warning" : ""}" value="${escapeHtml(resolved.sugar_percent)}">
           </div>
           <div>
             <label>Diastatic malt %</label>
-            <input type="number" id="malt" value="${escapeHtml(resolved.diastatic_malt_percent)}">
+            <input type="number" id="malt" class="${safetyWarnings.diastatic_malt_percent ? "input-warning" : ""}" value="${escapeHtml(resolved.diastatic_malt_percent)}">
           </div>
           <div>
             <label>Yeast % (IDY equiv)</label>
@@ -1187,7 +1373,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-temperature" style="${existingDough ? "display:none;" : ""}">
         <h3>Temperature Planning (DDT)</h3>
         <div class="grid-2">
           <div>
@@ -1220,7 +1406,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-ingredients" style="${existingDough ? "display:none;" : ""}">
         <h3>Ingredient Totals + Preferment Split</h3>
         <div class="kpi">
           <div class="box"><div class="small">Flour</div><div class="v">${derived.total_flour_g} g</div></div>
@@ -1248,22 +1434,33 @@
 
     renderWarnings();
 
-    on("#plannedEat", "change", (e) => setInputValue("planned_eat_time_iso", localInputToISO(e.target.value)));
-    on("#timezone", "change", (e) => setInputValue("timezone", e.target.value || "America/Toronto"));
-    on("#doughModality", "change", (e) => setInputValue("dough_modality", e.target.value));
-    on("#styleId", "change", (e) => setInputValue("pizza_style_id", e.target.value));
-    on("#ovenSelect", "change", (e) => setInputValue("oven_id", e.target.value));
-    on("#ovenSettingSelect", "change", (e) => setInputValue("oven_setting_id", e.target.value));
-    on("#mixerSelect", "change", (e) => setInputValue("mixer_id", e.target.value));
-    on("#mixMethod", "change", (e) => setInputValue("mix_method", e.target.value));
-    on("#ovenType", "change", (e) => setInputValue("oven_type", e.target.value));
-    on("#methodSelect", "change", (e) => setInputValue("method_id", e.target.value));
-    on("#presetSelect", "change", (e) => setInputValue("preset_id", e.target.value));
-    on("#flourBlend", "change", (e) => setInputValue("flour_blend_id", e.target.value));
+    on("#plannedEat", "change", (e) => applyInputChanges({ planned_eat_time_iso: localInputToISO(e.target.value) }));
+    on("#doughModality", "change", (e) => applyInputChanges({ dough_modality: e.target.value }));
+    on("#styleId", "change", (e) => {
+      const nextStyle = e.target.value;
+      if (nextStyle === resolved.pizza_style_id) return;
+      resetOrdersForStyle(nextStyle);
+      const defaults = applyStyleDefaults(nextStyle);
+      applyInputChanges({ pizza_style_id: nextStyle, ...defaults });
+    });
+    on("#presetSelect", "change", (e) => {
+      const preset = getPresetById(e.target.value);
+      applyPresetSelection(preset);
+      updateStateAndRender();
+    });
+    on("#ovenSelect", "change", (e) => applyInputChanges({ oven_id: e.target.value }));
+    on("#ovenSettingSelect", "change", (e) => applyInputChanges({ oven_setting_id: e.target.value }));
+    on("#mixerSelect", "change", (e) => {
+      const mixer = getMixerById(e.target.value);
+      applyInputChanges({
+        mixer_id: e.target.value,
+        mix_method: mixer?.mixer_class || APP_STATE.session.inputs.mix_method
+      });
+    });
+    on("#existingDoughState", "change", (e) => applyInputChanges({ existing_dough_state: e.target.value }));
 
     handleNumberInput($("#ballsUsed"), "target_pizza_count", { integer: true });
     handleNumberInput($("#ballWeight"), "dough_unit_weight_g", { integer: true });
-    handleNumberInput($("#batchMax"), "batching_max_dough_mass_g", { integer: true });
     handleNumberInput($("#panArea"), "pan_or_tray_area_cm2");
     handleNumberInput($("#gramsPerCm"), "dough_grams_per_cm2");
     handleNumberInput($("#panLength"), "pan_length_in");
@@ -1271,14 +1468,7 @@
 
     on("#prefermentType", "change", (e) => {
       const value = e.target.value;
-      setInputValue("preferment_type", value);
-      setInputValue("preferment_enabled", value !== "direct" && value !== "starter");
-      setInputValue("starter_enabled", value === "starter");
-    });
-    on("#prefermentEnabled", "change", (e) => {
-      const enabled = e.target.value === "true";
-      setInputValue("preferment_enabled", enabled);
-      if (!enabled) setInputValue("preferment_type", "direct");
+      applyPrefermentTypeChange(value, { markPresetCustom: true });
     });
     handleNumberInput($("#prefFlourPct"), "preferment_flour_percent_of_total");
     handleNumberInput($("#prefHydration"), "preferment_hydration_percent");
@@ -1287,40 +1477,44 @@
     handleNumberInput($("#bigaShare"), "hybrid_biga_share_percent");
     handleNumberInput($("#poolishHydration"), "poolish_hydration_percent");
     handleNumberInput($("#bigaHydration"), "biga_hydration_percent");
-    const starterEnabledEl = $("#starterEnabled");
-    if (starterEnabledEl) {
-      starterEnabledEl.addEventListener("change", (e) => {
-        const enabled = e.target.value === "true";
-        setInputValue("starter_enabled", enabled);
-        if (enabled) setInputValue("preferment_type", "starter");
-      });
-    }
     handleNumberInput($("#starterHydration"), "starter_hydration_percent");
     handleNumberInput($("#starterInoculation"), "starter_inoculation_percent");
     handleNumberInput($("#starterPeak"), "starter_peak_window_hours");
 
-    on("#fermLoc", "change", (e) => setInputValue("fermentation_location", e.target.value));
+    on("#fermLoc", "change", (e) => applyInputChanges({ fermentation_location: e.target.value }));
     handleNumberInput($("#bulkHours"), "bulk_ferment_hours");
     handleNumberInput($("#coldHours"), "cold_ferment_hours");
     handleNumberInput($("#ballHours"), "ball_or_pan_ferment_hours");
     on("#fermTotal", "change", (e) => {
       const total = Number(e.target.value || 0);
-      if (!Number.isFinite(total) || total <= 0) return;
+      if (!Number.isFinite(total)) return;
+      if (total === 0) {
+        applyInputChanges({
+          bulk_ferment_hours: 0,
+          cold_ferment_hours: 0,
+          ball_or_pan_ferment_hours: 0
+        });
+        return;
+      }
       const currentTotal = totalFermentHours || 1;
       const bulkRatio = resolved.bulk_ferment_hours / currentTotal;
       const coldRatio = resolved.cold_ferment_hours / currentTotal;
       const ballRatio = resolved.ball_or_pan_ferment_hours / currentTotal;
-      setInputValue("bulk_ferment_hours", round(total * bulkRatio, 1));
-      setInputValue("cold_ferment_hours", round(total * coldRatio, 1));
-      setInputValue("ball_or_pan_ferment_hours", round(total * ballRatio, 1));
+      applyInputChanges({
+        bulk_ferment_hours: round(total * bulkRatio, 1),
+        cold_ferment_hours: round(total * coldRatio, 1),
+        ball_or_pan_ferment_hours: round(total * ballRatio, 1)
+      });
     });
 
     on("#fermMode", "change", (e) => {
       const total = Number(($("#fermTotal") || {}).value || 0);
       if (e.target.value === "single") {
-        setInputValue("bulk_ferment_hours", total);
-        setInputValue("cold_ferment_hours", 0);
-        setInputValue("ball_or_pan_ferment_hours", 0);
+        applyInputChanges({
+          bulk_ferment_hours: total,
+          cold_ferment_hours: 0,
+          ball_or_pan_ferment_hours: 0
+        });
         return;
       }
       const defaults = method?.defaults || {};
@@ -1329,9 +1523,11 @@
         Number(defaults.cold_ferment_hours || 0) +
         Number(defaults.ball_or_pan_ferment_hours || 0);
       if (defaultTotal > 0) {
-        setInputValue("bulk_ferment_hours", round(total * (defaults.bulk_ferment_hours / defaultTotal), 1));
-        setInputValue("cold_ferment_hours", round(total * (defaults.cold_ferment_hours / defaultTotal), 1));
-        setInputValue("ball_or_pan_ferment_hours", round(total * (defaults.ball_or_pan_ferment_hours / defaultTotal), 1));
+        applyInputChanges({
+          bulk_ferment_hours: round(total * (defaults.bulk_ferment_hours / defaultTotal), 1),
+          cold_ferment_hours: round(total * (defaults.cold_ferment_hours / defaultTotal), 1),
+          ball_or_pan_ferment_hours: round(total * (defaults.ball_or_pan_ferment_hours / defaultTotal), 1)
+        });
       }
     });
 
@@ -1342,9 +1538,9 @@
     handleNumberInput($("#sugar"), "sugar_percent");
     handleNumberInput($("#malt"), "diastatic_malt_percent");
     handleNumberInput($("#yeastPct"), "yeast_percent");
-    on("#yeastType", "change", (e) => setInputValue("yeast_type", e.target.value));
+    on("#yeastType", "change", (e) => applyInputChanges({ yeast_type: e.target.value }));
 
-    on("#ddtEnabled", "change", (e) => setInputValue("ddt_model_enabled", e.target.value === "true"));
+    on("#ddtEnabled", "change", (e) => applyInputChanges({ ddt_model_enabled: e.target.value === "true" }));
     handleNumberInput($("#ambientTemp"), "ambient_temp_c");
     handleNumberInput($("#flourTemp"), "flour_temp_c");
     handleNumberInput($("#fridgeTemp"), "fridge_temp_c");
@@ -1554,7 +1750,7 @@
 
   async function init() {
     loadState();
-    APP_STATE.orders = APP_STATE.orders.length ? APP_STATE.orders : DEFAULT_ORDERS;
+    APP_STATE.orders = APP_STATE.orders.length ? APP_STATE.orders : cloneDefaultOrders();
 
     const dataAssets = {
       methods: assetUrl("data/dough_methods.json"),
